@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "k-invest"
+version = "2.0.0"
+description = "Read-only personal investment data MCP server — Toss Securities, KIS, SEC EDGAR, yfinance, Binance USD-M Futures"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "AhnRyu" }]
+keywords = ["mcp", "toss-securities", "kis", "sec-edgar", "yfinance", "binance", "fastmcp"]
+dependencies = [
+  "mcp>=1.26",
+  "httpx>=0.28",
+  "yfinance>=1.2",
+  "uvicorn>=0.40",
+]
+
+[project.urls]
+Homepage = "https://github.com/ianlyoo/K-invest"
+
+[project.scripts]
+k-invest = "server:main"
+
+[tool.ruff.lint.per-file-ignores]
+# tests use the repo-root sys.path.insert pattern before imports
+"tests/*" = ["E402"]
+
+[tool.setuptools]
+py-modules = [
+  "server",
+  "kinvest_common",
+  "toss_api",
+  "toss_accounts",
+  "kis_api",
+  "sec_api",
+  "sec_insider",
+  "sec_ttm",
+  "sec_segments",
+  "sec_quality",
+  "sec_derived",
+  "yfinance_api",
+  "yfinance_metrics",
+  "yfinance_consensus",
+  "binance_futures_api",
+  "margin_ta_runner",
+]

@@ -1,0 +1,4 @@
+mcp>=1.26
+httpx>=0.28
+yfinance>=1.2
+uvicorn>=0.40

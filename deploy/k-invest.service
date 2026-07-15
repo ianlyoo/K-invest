@@ -1,0 +1,28 @@
+[Unit]
+Description=K-invest Read-Only Invest MCP Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=youruser
+Group=youruser
+WorkingDirectory=/home/youruser/K-invest
+EnvironmentFile=/etc/k-invest.env
+Environment=KINVEST_CACHE_DIR=/var/cache/k-invest
+ExecStart=/usr/bin/python3 /home/youruser/K-invest/server.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=k-invest
+CacheDirectory=k-invest
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

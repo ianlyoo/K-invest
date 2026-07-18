@@ -48,7 +48,7 @@ from kis_api import KISAPIError, KISClient
 from sec_api import SECClient
 from yfinance_api import YFinanceClient
 from yfinance_consensus import risk_free_rate
-from margin_ta_runner import MarginTARunner
+from margin_ta_runner import MarginTARunner, _summarize_analysis
 from binance_futures_api import BinanceAPIError, BinanceFuturesClient
 
 # ── Logging ─────────────────────────────────────────────
@@ -59,7 +59,7 @@ logging.basicConfig(
     stream=sys.stderr,
 )
 logger = logging.getLogger("k-invest")
-SERVER_VERSION = "2.0.0"
+SERVER_VERSION = "2.1.0"
 
 # ── Config ──────────────────────────────────────────────
 
@@ -947,6 +947,7 @@ def analyze_technical(symbol: str, market: Literal["auto", "us", "kr"] = "auto",
     Computes Entry Score (0-100), support/resistance levels, Fibonacci,
     AVWAP, volume profile, candlestick patterns, and market regime.
     Covers US and Korean stocks.
+    Multi-horizon (daily/weekly/monthly) stances, indicator consensus, and tiered key levels included.
 
     Args:
         symbol: Stock ticker (e.g., "AAPL", "005930")
@@ -958,16 +959,18 @@ def analyze_technical(symbol: str, market: Literal["auto", "us", "kr"] = "auto",
     try:
         data = _get_mt().analyze(symbol, market=market)
         if detail_level == "summary" and isinstance(data, dict):
-            pricing = data.get("pricing", {})
+            full = data
+            pricing = full.get("pricing", {})
             data = {
-                "symbol": data.get("symbol"),
-                "current_price": data.get("current_price"),
-                "currency": data.get("currency") or data.get("info", {}).get("currency"),
-                "entry_score": data.get("signals", {}).get("entry_score"),
+                "symbol": full.get("symbol"),
+                "current_price": full.get("current_price"),
+                "currency": full.get("currency") or full.get("info", {}).get("currency"),
+                "entry_score": full.get("signals", {}).get("entry_score"),
                 "entry_plans": pricing.get("entry_plans"),
-                "warnings": data.get("warnings", []),
-                "data_quality": data.get("data_quality"),
+                "warnings": full.get("warnings", []),
+                "data_quality": full.get("data_quality"),
             }
+            data.update(_summarize_analysis(full))
         return _ok(data, provider="margin-ta")
     except Exception as e:
         return _format_error(e)
@@ -1139,6 +1142,12 @@ def get_invest_mcp_help(topic: str = "overview") -> dict[str, Any]:
 - `get_entry_plan(symbol, market="auto")` — 추천 진입전략, 손절가, 목표가, Entry Score
 - `analyze_technical(symbol, market="auto")` — 43개 지표 기반 전체 기술적 분석
 - `scan_top_stocks(top_n=5, min_score=0)` — NASDAQ100 + S&P500 기술적 스캔. 캐시 있으면 약 3분, 없으면 20분까지 걸릴 수 있다.
+
+## 멀티 호라이즌 (analyze_technical / get_entry_plan 응답 포함)
+
+- `horizons`: 단기(daily)/중기(weekly)/장기(monthly) 3단 스탠스(stance/score)와 `alignment`(정렬 여부)
+- `consensus`: 지표 간 합의도 `agreement`(0-100)와 상충 신호 `conflicts` 목록
+- `key_levels`: 중장기 핵심 지지(`below`)/저항(`above`) top3
 
 ## market 값
 

@@ -31,6 +31,8 @@ def _extract_plan(plan: dict[str, Any], compact: bool = False) -> dict[str, Any]
         "first_target_rr": plan.get("first_target_rr"),
         "entry_tranche_pct": plan.get("entry_tranche_pct"),
         "position_sizing_note": plan.get("position_sizing_note"),
+        "consensus_warning": plan.get("consensus_warning"),
+        "major_support_nearby": plan.get("major_support_nearby"),
     }
     if not compact:
         entry_obj.update({
@@ -41,6 +43,31 @@ def _extract_plan(plan: dict[str, Any], compact: bool = False) -> dict[str, Any]
             "rr_warning": plan.get("rr_warning"),
         })
     return entry_obj
+
+
+def _summarize_analysis(full: dict) -> dict:
+    """멀티 호라이즌 블록의 MCP summary 압축형. 구버전 payload면 {}."""
+    if not isinstance(full, dict) or "horizons" not in full:
+        return {}
+    horizons = full.get("horizons", {})
+    consensus = full.get("consensus", {})
+    tiers = full.get("sr_tiers", {})
+    return {
+        "horizons": {
+            name: {"stance": h.get("stance"), "score": h.get("score")}
+            for name, h in horizons.items()
+            if isinstance(h, dict)
+        },
+        "alignment": horizons.get("alignment"),
+        "consensus": {
+            "agreement": consensus.get("agreement"),
+            "conflicts": consensus.get("conflicts", []),
+        },
+        "key_levels": {
+            "below": tiers.get("key_below_top3", []),
+            "above": tiers.get("key_above_top3", []),
+        },
+    }
 
 
 def _subprocess_env(toss_cache: Path) -> dict[str, str]:
@@ -184,6 +211,8 @@ class MarginTARunner:
                     result["alternatives"].append(_extract_plan(plan, compact=True))
             if detail_level == "full":
                 result["raw_analysis"] = full
+
+        result.update(_summarize_analysis(full))
 
         return result
 

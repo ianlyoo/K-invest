@@ -22,6 +22,8 @@ def test_summarize_market_risk_extracts_holdings_exposure() -> None:
     assert out["by_sector"]["XLK"]["weight_pct"] == 80.0
     assert out["by_sector"]["XLK"]["risk_score"] == 72
     assert "XLK" in out["headline"]
+    # by_sector/headline shape unchanged; no usdkrw_rate passed → unnormalized
+    assert out["fx_normalized"] is False
 
 
 def test_summarize_holdings_empty_positions() -> None:
@@ -29,6 +31,55 @@ def test_summarize_holdings_empty_positions() -> None:
 
     out = _summarize_holdings_sector_exposure([], {"sector_risk": {}})
     assert out["by_sector"] == {}
+    assert "headline" in out
+
+
+def test_summarize_holdings_fx_normalizes_mixed_currency_positions() -> None:
+    """Reviewer-flagged gap: raw market_value sums mix KRW (Toss/KIS domestic)
+    and USD (KIS overseas) positions, so a ~5,000,000 KRW position (~$3,800)
+    drowns out an $8,000 USD position's weight_pct. With usdkrw_rate supplied,
+    both should convert to a common USD basis before weighting.
+    """
+    from server import _summarize_holdings_sector_exposure
+
+    market_risk = {
+        "sector_risk": {"XLK": {"score": 72, "level": "high"}, "XLF": {"score": 30, "level": "medium"}},
+    }
+    positions = [
+        # ~5,000,000 KRW at 1,300 KRW/USD ≈ $3,846 — Korean bank stock (XLF proxy)
+        {"symbol": "005930", "currency": "KRW", "market_value": 5_000_000.0, "sector_etf": "XLF"},
+        # $8,000 USD — KIS overseas holding (XLK proxy)
+        {"symbol": "NVDA", "currency": "USD", "market_value": 8_000.0, "sector_etf": "XLK"},
+    ]
+
+    out = _summarize_holdings_sector_exposure(positions, market_risk, usdkrw_rate=1300.0)
+
+    assert out["fx_normalized"] is True
+    assert "by_sector" in out and "headline" in out
+    # USD position (~$8,000) should carry a meaningful share once KRW (~$3,846) is
+    # normalized to the same basis — well above the ~0.16% it'd get from a raw sum.
+    assert out["by_sector"]["XLK"]["weight_pct"] > 50.0
+    # sanity: weights should roughly sum to 100
+    total_weight = sum(v["weight_pct"] for v in out["by_sector"].values())
+    assert 99.0 <= total_weight <= 101.0
+
+
+def test_summarize_holdings_no_rate_falls_back_unnormalized() -> None:
+    """usdkrw_rate=None (FX lookup unavailable) must not error — falls back to
+    the raw-sum behavior with fx_normalized=False so the caller/LLM knows
+    weights aren't comparable across currencies."""
+    from server import _summarize_holdings_sector_exposure
+
+    market_risk = {"sector_risk": {"XLK": {"score": 72, "level": "high"}}}
+    positions = [
+        {"symbol": "005930", "currency": "KRW", "market_value": 5_000_000.0, "sector_etf": "XLF"},
+        {"symbol": "NVDA", "currency": "USD", "market_value": 8_000.0, "sector_etf": "XLK"},
+    ]
+
+    out = _summarize_holdings_sector_exposure(positions, market_risk, usdkrw_rate=None)
+
+    assert out["fx_normalized"] is False
+    assert "by_sector" in out and "headline" in out
 
 
 def test_get_market_risk_keeps_kis_holdings_when_toss_registry_fails(monkeypatch) -> None:

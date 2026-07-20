@@ -379,18 +379,46 @@ def _risk_from_positions(positions: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _summarize_holdings_sector_exposure(
-    positions: list[dict[str, Any]], market_risk: dict[str, Any]
+    positions: list[dict[str, Any]],
+    market_risk: dict[str, Any],
+    usdkrw_rate: float | None = None,
 ) -> dict[str, Any]:
-    """Aggregate holdings by sector ETF and pair each with its market-risk score."""
+    """Aggregate holdings by sector ETF and pair each with its market-risk score.
+
+    Positions carry provider-reported market_value in their native currency
+    (KRW for Toss/KIS domestic, USD for KIS overseas). Without FX normalization,
+    summing raw values makes a ~5,000,000 KRW position and an 8,000 USD position
+    compare as 5,000,000 vs 8,000, drowning out USD exposure in the weight_pct.
+    When usdkrw_rate is available, KRW is converted to USD (unknown currencies
+    are best-effort treated as USD) and fx_normalized=True; otherwise this falls
+    back to the old raw-sum behavior with fx_normalized=False so callers know the
+    weights aren't comparable across currencies.
+    """
     sector_risk = market_risk.get("sector_risk", {})
+    fx_normalized = bool(usdkrw_rate)
+    unknown_currency_symbols: list[Any] = []
+
+    def _to_usd(p: dict[str, Any]) -> float:
+        value = float(p.get("market_value") or 0)
+        if not fx_normalized:
+            return value
+        currency = str(p.get("currency") or "").upper()
+        if currency == "USD":
+            return value
+        if currency == "KRW":
+            return value / usdkrw_rate  # type: ignore[operator]
+        unknown_currency_symbols.append(p.get("symbol"))
+        return value  # best-effort: treat unknown currency as already USD
+
+    usd_values = [(p, _to_usd(p)) for p in positions]
+    total = sum(v for _, v in usd_values) or 1.0
     by_sector: dict[str, dict[str, Any]] = {}
-    total = sum(float(p.get("market_value") or 0) for p in positions) or 1.0
-    for p in positions:
+    for p, v in usd_values:
         etf = p.get("sector_etf")
         if not etf:
             continue
         agg = by_sector.setdefault(etf, {"value": 0.0, "symbols": []})
-        agg["value"] += float(p.get("market_value") or 0)
+        agg["value"] += v
         agg["symbols"].append(p.get("symbol"))
     for etf, agg in by_sector.items():
         sr = sector_risk.get(etf, {})
@@ -410,7 +438,10 @@ def _summarize_holdings_sector_exposure(
             f"보유 비중 {top['weight_pct']}%가 {top_etf}(위험 {top.get('risk_score')}/"
             f"{top.get('risk_level')})에 노출"
         )
-    return {"by_sector": by_sector, "headline": headline}
+    result: dict[str, Any] = {"by_sector": by_sector, "headline": headline, "fx_normalized": fx_normalized}
+    if unknown_currency_symbols:
+        result["unknown_currency_symbols"] = unknown_currency_symbols
+    return result
 
 
 # ════════════════════════════════════════════════════════════════
@@ -1319,10 +1350,10 @@ def get_market_risk(detail_level: Literal["summary", "full"] = "summary") -> dic
     """Market & sector risk dashboard with your holdings' sector exposure (READ-ONLY).
 
     Distinct from get_portfolio_risk (currency/concentration): this reads macro
-    volatility (VXN-VIX, VIX term structure, VVIX), valuation (Buffett indicator),
-    credit/rates, index overheating (monthly CCI/RSI, 200DMA gap), and per-sector
-    risk scores, then maps YOUR Toss/KIS holdings to sectors to show concentration
-    in stressed sectors.
+    volatility (VXN-VIX, VIX term structure, VVIX), credit/rates, index
+    overheating (monthly CCI/RSI, 200DMA gap), and per-sector risk scores, then
+    maps YOUR Toss/KIS holdings to sectors to show concentration in stressed
+    sectors.
     """
     try:
         mr = _get_mt().market_risk()
@@ -1365,15 +1396,28 @@ def get_market_risk(detail_level: Literal["summary", "full"] = "summary") -> dic
         except Exception:
             positions = []
 
-        holdings_exposure = _summarize_holdings_sector_exposure(positions, mr) if positions else None
+        # USD/KRW 환율 best-effort (실패해도 시장 위험은 반환; holdings_exposure는 raw-sum으로 폴백)
+        usdkrw_rate: float | None = None
+        try:
+            fx = _get_toss().get_exchange_rate(base="USD", quote="KRW")
+            usdkrw_rate = float(fx.get("rate"))
+        except Exception:
+            usdkrw_rate = None
+
+        holdings_exposure = (
+            _summarize_holdings_sector_exposure(positions, mr, usdkrw_rate) if positions else None
+        )
 
         if detail_level == "summary":
             top_sectors = sorted(
                 mr.get("sector_risk", {}).items(), key=lambda x: x[1].get("score", 0), reverse=True
             )[:5]
+            group_score_values = [v for v in (mr.get("group_scores") or {}).values() if v is not None]
             data = {
                 "score": mr.get("score"),
                 "regime": mr.get("regime"),
+                "max_group_score": max(group_score_values) if group_score_values else None,
+                "alert_count": len(mr.get("alerts", [])),
                 "alerts": mr.get("alerts", []),
                 "alert_indicators": {
                     k: v for k, v in mr.get("indicators", {}).items() if v.get("signal") == "alert"

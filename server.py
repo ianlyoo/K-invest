@@ -1336,8 +1336,11 @@ def get_market_risk(detail_level: Literal["summary", "full"] = "summary") -> dic
                 ("kis_domestic", lambda: _get_kis().get_domestic_balance()),
                 ("kis_overseas", lambda: _get_kis().get_overseas_balance()),
             ]
-            for label in _get_toss_registry().account_labels():
-                probes.append((f"toss:{label}", lambda a=label: _get_toss(a).get_holdings()))
+            try:
+                for label in _get_toss_registry().account_labels():
+                    probes.append((f"toss:{label}", lambda a=label: _get_toss(a).get_holdings()))
+            except Exception:
+                pass
             _SECTOR_MAP = {
                 "technology": "XLK", "financial services": "XLF", "healthcare": "XLV",
                 "energy": "XLE", "industrials": "XLI", "consumer cyclical": "XLY",

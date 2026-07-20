@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "k-invest"
-version = "2.1.0"
+version = "2.2.0"
 description = "Read-only personal investment data MCP server — Toss Securities, KIS, SEC EDGAR, yfinance, Binance USD-M Futures"
 readme = "README.md"
 requires-python = ">=3.10"

@@ -59,7 +59,7 @@ logging.basicConfig(
     stream=sys.stderr,
 )
 logger = logging.getLogger("k-invest")
-SERVER_VERSION = "2.1.0"
+SERVER_VERSION = "2.2.0"
 
 # ── Config ──────────────────────────────────────────────
 
@@ -376,6 +376,41 @@ def _risk_from_positions(positions: list[dict[str, Any]]) -> dict[str, Any]:
         },
         "total_unconverted_value": round(total_unconverted, 2),
     }
+
+
+def _summarize_holdings_sector_exposure(
+    positions: list[dict[str, Any]], market_risk: dict[str, Any]
+) -> dict[str, Any]:
+    """Aggregate holdings by sector ETF and pair each with its market-risk score."""
+    sector_risk = market_risk.get("sector_risk", {})
+    by_sector: dict[str, dict[str, Any]] = {}
+    total = sum(float(p.get("market_value") or 0) for p in positions) or 1.0
+    for p in positions:
+        etf = p.get("sector_etf")
+        if not etf:
+            continue
+        agg = by_sector.setdefault(etf, {"value": 0.0, "symbols": []})
+        agg["value"] += float(p.get("market_value") or 0)
+        agg["symbols"].append(p.get("symbol"))
+    for etf, agg in by_sector.items():
+        sr = sector_risk.get(etf, {})
+        agg["weight_pct"] = round(agg["value"] / total * 100, 1)
+        agg["risk_score"] = sr.get("score")
+        agg["risk_level"] = sr.get("level")
+        agg.pop("value", None)
+    ranked = sorted(
+        by_sector.items(),
+        key=lambda x: (x[1].get("risk_score") or 0) * x[1]["weight_pct"],
+        reverse=True,
+    )
+    headline = ""
+    if ranked:
+        top_etf, top = ranked[0]
+        headline = (
+            f"보유 비중 {top['weight_pct']}%가 {top_etf}(위험 {top.get('risk_score')}/"
+            f"{top.get('risk_level')})에 노출"
+        )
+    return {"by_sector": by_sector, "headline": headline}
 
 
 # ════════════════════════════════════════════════════════════════
@@ -1142,6 +1177,7 @@ def get_invest_mcp_help(topic: str = "overview") -> dict[str, Any]:
 - `get_entry_plan(symbol, market="auto")` — 추천 진입전략, 손절가, 목표가, Entry Score
 - `analyze_technical(symbol, market="auto")` — 43개 지표 기반 전체 기술적 분석
 - `scan_top_stocks(top_n=5, min_score=0)` — NASDAQ100 + S&P500 기술적 스캔. 캐시 있으면 약 3분, 없으면 20분까지 걸릴 수 있다.
+- `get_market_risk(detail_level="summary")` — 매크로/섹터 위험 대시보드(스코어·regime·alert 지표) + 내 토스/KIS 보유종목의 섹터 노출. `get_portfolio_risk`(통화/집중도)와는 별개.
 
 ## 멀티 호라이즌 (analyze_technical / get_entry_plan 응답 포함)
 
@@ -1276,6 +1312,79 @@ def get_portfolio_risk(detail_level: Literal["summary", "full"] = "summary") -> 
         data.pop("total_unconverted_value", None)
         data["top_positions"] = data["top_positions"][:5]
     return _ok(data, provider="composite")
+
+
+@mcp.tool()
+def get_market_risk(detail_level: Literal["summary", "full"] = "summary") -> dict[str, Any]:
+    """Market & sector risk dashboard with your holdings' sector exposure (READ-ONLY).
+
+    Distinct from get_portfolio_risk (currency/concentration): this reads macro
+    volatility (VXN-VIX, VIX term structure, VVIX), valuation (Buffett indicator),
+    credit/rates, index overheating (monthly CCI/RSI, 200DMA gap), and per-sector
+    risk scores, then maps YOUR Toss/KIS holdings to sectors to show concentration
+    in stressed sectors.
+    """
+    try:
+        mr = _get_mt().market_risk()
+        if isinstance(mr, dict) and mr.get("error"):
+            return _fail("MARGIN_TA_ERROR", mr.get("message", "market_risk failed"), provider="margin-ta")
+
+        # 보유종목 → 섹터 매핑 (best-effort, 실패해도 시장 위험은 반환)
+        positions: list[dict[str, Any]] = []
+        try:
+            probes = [
+                ("kis_domestic", lambda: _get_kis().get_domestic_balance()),
+                ("kis_overseas", lambda: _get_kis().get_overseas_balance()),
+            ]
+            for label in _get_toss_registry().account_labels():
+                probes.append((f"toss:{label}", lambda a=label: _get_toss(a).get_holdings()))
+            _SECTOR_MAP = {
+                "technology": "XLK", "financial services": "XLF", "healthcare": "XLV",
+                "energy": "XLE", "industrials": "XLI", "consumer cyclical": "XLY",
+                "consumer defensive": "XLP", "utilities": "XLU", "basic materials": "XLB",
+                "communication services": "XLC", "real estate": "XLRE",
+            }
+            for source, probe in probes:
+                try:
+                    for item in _walk_position_items(probe()):
+                        pos = _position_from_item(source, item)
+                        if not pos:
+                            continue
+                        try:
+                            metrics_symbol = f"{pos['symbol']}.KS" if pos["symbol"].isdigit() else pos["symbol"]
+                            sec = str((_get_yf().get_key_metrics(metrics_symbol) or {}).get("sector") or "").lower()
+                            pos["sector_etf"] = _SECTOR_MAP.get(sec)
+                        except Exception:
+                            pos["sector_etf"] = None
+                        positions.append(pos)
+                except Exception:
+                    continue
+        except Exception:
+            positions = []
+
+        holdings_exposure = _summarize_holdings_sector_exposure(positions, mr) if positions else None
+
+        if detail_level == "summary":
+            top_sectors = sorted(
+                mr.get("sector_risk", {}).items(), key=lambda x: x[1].get("score", 0), reverse=True
+            )[:5]
+            data = {
+                "score": mr.get("score"),
+                "regime": mr.get("regime"),
+                "alerts": mr.get("alerts", []),
+                "alert_indicators": {
+                    k: v for k, v in mr.get("indicators", {}).items() if v.get("signal") == "alert"
+                },
+                "top_sectors": [{"etf": k, **v} for k, v in top_sectors],
+                "holdings_exposure": holdings_exposure,
+                "unavailable_count": len(mr.get("unavailable", [])),
+                "as_of": mr.get("as_of"),
+            }
+        else:
+            data = {**mr, "holdings_exposure": holdings_exposure}
+        return _ok(data, provider="margin-ta")
+    except Exception as e:
+        return _format_error(e)
 
 
 @mcp.tool()

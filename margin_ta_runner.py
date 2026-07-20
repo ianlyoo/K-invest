@@ -91,6 +91,7 @@ class MarginTARunner:
         self._python = home / ".venv" / "bin" / "python3"
         self._analyze_script = home / "scripts" / "margin_ta.py"
         self._scan_script = home / "scripts" / "scan_nightly.py"
+        self._market_risk_script = home / "scripts" / "market_risk.py"
         self._toss_cache = cache_dir() / "margin_ta_toss_token.json"
         if not self._python.exists():
             raise RuntimeError(
@@ -215,6 +216,47 @@ class MarginTARunner:
         result.update(_summarize_analysis(full))
 
         return result
+
+    def market_risk(self, include_kr: bool = True) -> dict[str, Any]:
+        """Run market_risk.py --json and return the parsed dashboard.
+
+        Args:
+            include_kr: Whether to include Korean-market indicators (default True)
+
+        Returns:
+            Dict with score, regime, group_scores, alerts, indicators, sector_risk,
+            unavailable, as_of (see margin-ta scripts/market_risk.py --json).
+        """
+        args = [
+            str(self._python),
+            str(self._market_risk_script),
+            "--json",
+        ]
+        if not include_kr:
+            args.append("--no-kr")
+
+        logger.info("Running margin-ta market_risk: %s", " ".join(args))
+        result = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            timeout=180,
+            env=_subprocess_env(self._toss_cache),
+        )
+        if result.returncode != 0:
+            return {
+                "error": True,
+                "message": f"market_risk failed with return code {result.returncode}",
+                "stderr": result.stderr[:500],
+            }
+        try:
+            return json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return {
+                "error": True,
+                "message": "Failed to parse market_risk JSON output",
+                "stdout": result.stdout[:500],
+            }
 
     def scan_top_stocks(self, top_n: int = 5, min_score: int = 0) -> dict[str, Any]:
         """Scan top-N stocks from NASDAQ 100 + S&P 500.

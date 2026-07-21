@@ -378,6 +378,34 @@ def _risk_from_positions(positions: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+_US_SECTOR_ETF = {
+    "technology": "XLK", "financial services": "XLF", "healthcare": "XLV",
+    "energy": "XLE", "industrials": "XLI", "consumer cyclical": "XLY",
+    "consumer defensive": "XLP", "utilities": "XLU", "basic materials": "XLB",
+    "communication services": "XLC", "real estate": "XLRE",
+}
+
+
+def _resolve_sector_etf(symbol: str, metrics: dict[str, Any] | None,
+                        listing: str, available: set[str]) -> str | None:
+    """Map a holding to the sector proxy whose risk score best represents it.
+
+    Korean holdings map to Korean proxies (semis -> KODEX 반도체, otherwise the
+    KOSPI/KOSDAQ index) rather than US sector ETFs, which track a different market.
+    `listing` is "KS", "KQ", or "" (US).
+    """
+    sector = str((metrics or {}).get("sector") or "").strip().lower()
+    industry = str((metrics or {}).get("industry") or "").strip().lower()
+    if listing in ("KS", "KQ"):
+        if "semiconductor" in industry or "semiconductor" in sector:
+            if "091160.KS" in available:
+                return "091160.KS"
+        kr_index = "^KQ11" if listing == "KQ" else "^KS11"
+        return kr_index if kr_index in available else None
+    etf = _US_SECTOR_ETF.get(sector)
+    return etf if etf and etf in available else None
+
+
 def _summarize_holdings_sector_exposure(
     positions: list[dict[str, Any]],
     market_risk: dict[str, Any],
@@ -1372,12 +1400,6 @@ def get_market_risk(detail_level: Literal["summary", "full"] = "summary") -> dic
                     probes.append((f"toss:{label}", lambda a=label: _get_toss(a).get_holdings()))
             except Exception:
                 pass
-            _SECTOR_MAP = {
-                "technology": "XLK", "financial services": "XLF", "healthcare": "XLV",
-                "energy": "XLE", "industrials": "XLI", "consumer cyclical": "XLY",
-                "consumer defensive": "XLP", "utilities": "XLU", "basic materials": "XLB",
-                "communication services": "XLC", "real estate": "XLRE",
-            }
             for source, probe in probes:
                 try:
                     for item in _walk_position_items(probe()):
@@ -1385,9 +1407,22 @@ def get_market_risk(detail_level: Literal["summary", "full"] = "summary") -> dic
                         if not pos:
                             continue
                         try:
-                            metrics_symbol = f"{pos['symbol']}.KS" if pos["symbol"].isdigit() else pos["symbol"]
-                            sec = str((_get_yf().get_key_metrics(metrics_symbol) or {}).get("sector") or "").lower()
-                            pos["sector_etf"] = _SECTOR_MAP.get(sec)
+                            sym = pos["symbol"]
+                            metrics: dict[str, Any] | None = None
+                            listing = ""
+                            if sym.isdigit():
+                                for suffix in ("KS", "KQ"):
+                                    try:
+                                        candidate = _get_yf().get_key_metrics(f"{sym}.{suffix}")
+                                    except Exception:
+                                        candidate = None
+                                    if candidate and (candidate.get("sector") or candidate.get("industry")):
+                                        metrics, listing = candidate, suffix
+                                        break
+                            else:
+                                metrics = _get_yf().get_key_metrics(sym)
+                            available = set(mr.get("sector_risk", {}).keys())
+                            pos["sector_etf"] = _resolve_sector_etf(sym, metrics, listing, available)
                         except Exception:
                             pos["sector_etf"] = None
                         positions.append(pos)

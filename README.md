@@ -15,7 +15,7 @@ K-invest는 **토스증권, 한국투자증권(KIS), SEC EDGAR, yfinance, Binanc
 
 ```mermaid
 flowchart LR
-    A[Claude / ChatGPT / Perplexity] -- "HTTPS + Bearer" --> B[K-invest<br/>FastMCP · Streamable HTTP]
+    A[Claude / ChatGPT / Cursor] -- "HTTPS · OAuth 2.1 또는 Bearer" --> B[K-invest<br/>FastMCP · Streamable HTTP]
     B --> C[Toss Securities]
     B --> D[KIS Open API]
     B --> E[SEC EDGAR]
@@ -194,10 +194,36 @@ Caddy로 도메인 없이 노출할 수 있다:
 
 ## LLM 클라이언트 연결
 
-- **Claude** (Pro/Max/Team): 설정 → Connectors → *Add custom connector* →
-  URL은 공개 URL 뒤에 `/mcp`를 붙인 값 (`https://<your-ip>.sslip.io` + `/mcp`),
-  Authorization에 `MCP_AUTH_TOKEN` 값
-- **ChatGPT** (Pro/Business): 설정 → Connectors → MCP 서버 추가 — 동일 URL/토큰
+인증은 두 방식을 **동시에** 지원한다. 클라이언트 UI가 무엇을 요구하느냐에 따라 고르면 된다.
+
+### 방법 A — OAuth 2.1 (ID/시크릿 입력칸이 있는 클라이언트)
+
+ChatGPT·Claude·Cursor 등 대부분의 커넥터 UI가 이 방식이다. 서버에 클라이언트 한 쌍을
+미리 등록해두고, 그 값을 커넥터에 입력하면 표준 인증코드 플로우(PKCE)로 연결된다.
+
+```bash
+# 서버에 등록할 ID/시크릿 생성 → .env(또는 systemd env)에 넣는다
+python3 -c "import secrets; print('MCP_OAUTH_CLIENT_ID=k-invest-' + secrets.token_hex(8)); print('MCP_OAUTH_CLIENT_SECRET=' + secrets.token_urlsafe(32))"
+```
+
+커넥터 입력값:
+
+| 칸 | 값 |
+|---|---|
+| URL | 공개 URL + `/mcp` (`https://<your-ip>.sslip.io` + `/mcp`) |
+| Client ID | `MCP_OAUTH_CLIENT_ID` 값 |
+| Client Secret | `MCP_OAUTH_CLIENT_SECRET` 값 |
+
+`MCP_OAUTH_CLIENT_ID`와 `MCP_OAUTH_CLIENT_SECRET`이 **둘 다** 설정돼야 OAuth가 켜진다.
+켜지면 `/.well-known/oauth-authorization-server`, `/authorize`, `/token`이 노출된다.
+동적 클라이언트 등록(`/register`)은 의도적으로 비활성이다 — 누구나 자기 클라이언트를
+발급해 시크릿 관문을 우회하는 것을 막기 위함.
+
+### 방법 B — 정적 Bearer 토큰 (Authorization 헤더를 직접 넣는 경우)
+
+Claude 커스텀 커넥터의 Authorization 칸, 로컬 MCP 클라이언트의 `headers` 설정,
+스크립트/curl 등에 쓴다. `MCP_AUTH_TOKEN` 값을 `Authorization: Bearer <토큰>`으로 보낸다.
+OAuth를 켜도 이 경로는 계속 동작한다.
 
 ## 설정 레퍼런스
 
@@ -205,6 +231,8 @@ Caddy로 도메인 없이 노출할 수 있다:
 |---|---|---|
 | `MCP_AUTH_TOKEN` | ✅ | Bearer 토큰. `openssl rand -hex 32`로 생성 |
 | `MCP_PUBLIC_URL` |  | 외부 접근 URL (기본 `http://127.0.0.1:8100`) |
+| `MCP_OAUTH_CLIENT_ID` / `MCP_OAUTH_CLIENT_SECRET` |  | OAuth 2.1 클라이언트 (둘 다 설정 시 활성 — 방법 A) |
+| `MCP_OAUTH_TOKEN_TTL` |  | 액세스 토큰 수명(초, 기본 3600) |
 | `TOSS_CLIENT_ID` / `TOSS_CLIENT_SECRET` | ✅* | 토스증권 Open API (WTS → 설정 → Open API) |
 | `TOSS_CREDS_FILE` |  | 다중 계좌 JSON (`{"accounts": [...]}`, chmod 600) |
 | `KIS_APP_KEY` / `KIS_APP_SECRET` |  | KIS Open API ([발급](https://apiportal.koreainvestment.com)) |
@@ -235,6 +263,19 @@ Caddy로 도메인 없이 노출할 수 있다:
 - credential은 env/파일로만 주입되고 응답에 노출되지 않는다. creds 파일은 `chmod 600`.
 - MCP_AUTH_TOKEN 없이는 서버가 기동을 거부한다.
 - 인터넷 노출 시: 강한 토큰, HTTPS 필수, 방화벽에서 8100 직접 노출 금지(리버스 프록시만).
+
+### OAuth를 켤 때 알아둘 것
+
+이 서버의 OAuth는 **단일 사용자용**이라 `/authorize`가 동의 화면 없이 자동 승인한다.
+따라서 서버 URL과 client_id를 아는 사람은 인증 코드까지는 받을 수 있고,
+**실질적인 관문은 `client_secret`이다** — 코드를 토큰으로 바꾸려면 `/token`에서
+시크릿이 필요하고(PKCE도 함께 검증된다), 시크릿 없이는 발급되지 않는다.
+
+- `MCP_OAUTH_CLIENT_SECRET`은 계정 비밀번호처럼 다룰 것. 커넥터 외에 노출 금지.
+- 코드는 1회용·10분 만료이며 client_id와 redirect_uri에 바인딩된다.
+- 액세스 토큰은 `MCP_OAUTH_TOKEN_TTL`(기본 1시간) 후 만료된다. 토큰·코드는 메모리에만
+  저장되므로 서버를 재시작하면 모두 무효화된다(= 유출 시 킬 스위치).
+- 동적 클라이언트 등록(`/register`)은 코드에서 명시적으로 비활성화되어 있다.
 
 ## systemd 상시 구동 (선택)
 

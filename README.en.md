@@ -16,7 +16,7 @@ read-only.
 
 ```mermaid
 flowchart LR
-    A[Claude / ChatGPT / Perplexity] -- "HTTPS + Bearer" --> B[K-invest<br/>FastMCP · Streamable HTTP]
+    A[Claude / ChatGPT / Cursor] -- "HTTPS · OAuth 2.1 or Bearer" --> B[K-invest<br/>FastMCP · Streamable HTTP]
     B --> C[Toss Securities]
     B --> D[KIS Open API]
     B --> E[SEC EDGAR]
@@ -196,10 +196,37 @@ protection allowlist is derived from this value).
 
 ## Connecting LLM Clients
 
-- **Claude** (Pro/Max/Team): Settings → Connectors → *Add custom connector* →
-  URL is your public URL plus `/mcp` (`https://<your-ip>.sslip.io` + `/mcp`),
-  Authorization set to the `MCP_AUTH_TOKEN` value
-- **ChatGPT** (Pro/Business): Settings → Connectors → Add MCP server — same URL/token
+Two auth methods work **at the same time**. Pick whichever your client's UI asks for.
+
+### Option A — OAuth 2.1 (clients with Client ID / Secret fields)
+
+Most connector UIs (ChatGPT, Claude, Cursor) use this. You pre-register one client
+pair on the server and enter those values in the connector; the client then runs the
+standard authorization-code flow with PKCE.
+
+```bash
+# Generate the pair, then put it in .env (or your systemd env)
+python3 -c "import secrets; print('MCP_OAUTH_CLIENT_ID=k-invest-' + secrets.token_hex(8)); print('MCP_OAUTH_CLIENT_SECRET=' + secrets.token_urlsafe(32))"
+```
+
+What to enter in the connector:
+
+| Field | Value |
+|---|---|
+| URL | your public URL plus `/mcp` (`https://<your-ip>.sslip.io` + `/mcp`) |
+| Client ID | the `MCP_OAUTH_CLIENT_ID` value |
+| Client Secret | the `MCP_OAUTH_CLIENT_SECRET` value |
+
+OAuth turns on only when **both** `MCP_OAUTH_CLIENT_ID` and `MCP_OAUTH_CLIENT_SECRET`
+are set. It then serves `/.well-known/oauth-authorization-server`, `/authorize`, and
+`/token`. Dynamic client registration (`/register`) is deliberately disabled, so nobody
+can self-issue a client and bypass the secret.
+
+### Option B — Static bearer token (when you set the Authorization header yourself)
+
+Use this for Claude's custom-connector Authorization field, a local MCP client's
+`headers` config, or scripts/curl: send `Authorization: Bearer <MCP_AUTH_TOKEN>`.
+This path keeps working even with OAuth enabled.
 
 ## Configuration Reference
 
@@ -207,6 +234,8 @@ protection allowlist is derived from this value).
 |---|---|---|
 | `MCP_AUTH_TOKEN` | ✅ | Bearer token. Generate with `openssl rand -hex 32` |
 | `MCP_PUBLIC_URL` |  | Externally reachable URL (default `http://127.0.0.1:8100`) |
+| `MCP_OAUTH_CLIENT_ID` / `MCP_OAUTH_CLIENT_SECRET` |  | OAuth 2.1 client (both set = OAuth enabled — Option A) |
+| `MCP_OAUTH_TOKEN_TTL` |  | Access-token lifetime in seconds (default 3600) |
 | `TOSS_CLIENT_ID` / `TOSS_CLIENT_SECRET` | ✅* | Toss Securities Open API — Toss WTS → Settings → Open API (설정 → Open API) |
 | `TOSS_CREDS_FILE` |  | Multi-account JSON (`{"accounts": [...]}`, chmod 600) |
 | `KIS_APP_KEY` / `KIS_APP_SECRET` |  | KIS Open API ([issuance](https://apiportal.koreainvestment.com)) |
@@ -238,6 +267,19 @@ tools call this out via warning fields.
 - Credentials are injected only via env/files and never appear in responses. Credential files should be `chmod 600`.
 - The server refuses to start without `MCP_AUTH_TOKEN`.
 - When exposed to the internet: use a strong token, HTTPS is mandatory, and never expose port 8100 directly through the firewall (reverse proxy only).
+
+### What to know before enabling OAuth
+
+This server's OAuth is **single-user**, so `/authorize` auto-approves without a consent
+screen. Anyone who knows the server URL and the client_id can therefore obtain an
+authorization code — **the real gate is `client_secret`**: exchanging a code at `/token`
+requires the secret (and PKCE is verified alongside it), and no token is issued without it.
+
+- Treat `MCP_OAUTH_CLIENT_SECRET` like an account password; never expose it outside the connector.
+- Codes are single-use, expire in 10 minutes, and are bound to the client_id and redirect_uri.
+- Access tokens expire after `MCP_OAUTH_TOKEN_TTL` (default 1 hour). Codes and tokens live
+  only in memory, so restarting the server invalidates them all (your kill switch if one leaks).
+- Dynamic client registration (`/register`) is explicitly disabled in code.
 
 ## Running as a systemd service (optional)
 

@@ -19,6 +19,14 @@ from kinvest_common import NotConfiguredError, cache_dir
 logger = logging.getLogger("k-invest.margin_ta")
 
 
+def _tail(text: str, limit: int = 2000) -> str:
+    """Keep the END of subprocess output — a traceback's real exception is last."""
+    if not text:
+        return ""
+    text = text.strip()
+    return text if len(text) <= limit else "…(truncated)…\n" + text[-limit:]
+
+
 def _extract_plan(plan: dict[str, Any], compact: bool = False) -> dict[str, Any]:
     entry_obj: dict[str, Any] = {
         "trigger": plan.get("trigger", ""),
@@ -141,7 +149,7 @@ class MarginTARunner:
             return {
                 "error": True,
                 "message": f"margin-ta failed with return code {result.returncode}",
-                "stderr": result.stderr[:500],
+                "stderr": _tail(result.stderr),
             }
         try:
             payload = json.loads(result.stdout)
@@ -149,7 +157,7 @@ class MarginTARunner:
             return {
                 "error": True,
                 "message": "Failed to parse margin-ta JSON output",
-                "stdout": result.stdout[:500],
+                "stdout": _tail(result.stdout),
             }
         if _has_toss_401_warning(payload):
             try:
@@ -247,7 +255,7 @@ class MarginTARunner:
             return {
                 "error": True,
                 "message": f"market_risk failed with return code {result.returncode}",
-                "stderr": result.stderr[:500],
+                "stderr": _tail(result.stderr),
             }
         try:
             return json.loads(result.stdout)
@@ -255,7 +263,7 @@ class MarginTARunner:
             return {
                 "error": True,
                 "message": "Failed to parse market_risk JSON output",
-                "stdout": result.stdout[:500],
+                "stdout": _tail(result.stdout),
             }
 
     def scan_top_stocks(self, top_n: int = 5, min_score: int = 0) -> dict[str, Any]:
@@ -292,7 +300,7 @@ class MarginTARunner:
             return {
                 "error": True,
                 "message": f"Scan failed with return code {result.returncode}",
-                "stderr": result.stderr[:500],
+                "stderr": _tail(result.stderr),
             }
         try:
             return json.loads(result.stdout)
@@ -300,7 +308,7 @@ class MarginTARunner:
             return {
                 "error": True,
                 "message": "Failed to parse scan JSON output",
-                "stdout": result.stdout[:500],
+                "stdout": _tail(result.stdout),
             }
 
 

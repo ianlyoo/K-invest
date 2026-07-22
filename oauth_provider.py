@@ -33,6 +33,9 @@ from mcp.server.auth.provider import (
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 
 
+_MAX_REMEMBERED_REDIRECT_URIS = 10
+
+
 def _ttl_seconds() -> int:
     try:
         return int(os.environ.get("MCP_OAUTH_TOKEN_TTL", "3600"))
@@ -115,11 +118,26 @@ class PersonalOAuthProvider(
             return
         uris = list(client.redirect_uris or [])
         if redirect_uri not in uris:
-            uris.append(redirect_uri)  # type: ignore[arg-type]
+            # Cap the list: /authorize is unauthenticated, so an attacker could
+            # otherwise grow it without bound by replaying random redirect_uris.
+            uris = (uris + [redirect_uri])[-_MAX_REMEMBERED_REDIRECT_URIS:]  # type: ignore[list-item]
             self._clients[client_id] = client.model_copy(update={"redirect_uris": uris})
+
+    # ── housekeeping ─────────────────────────────────────
+    def _purge_expired(self) -> None:
+        """Drop expired codes/tokens so unauthenticated /authorize traffic can't
+        grow the in-memory stores without bound."""
+        now = int(time.time())
+        for store in (self._codes, self._access_tokens, self._refresh_tokens):
+            for key in [
+                k for k, v in store.items()
+                if getattr(v, "expires_at", None) is not None and v.expires_at < now
+            ]:
+                store.pop(key, None)
 
     # ── authorization code ───────────────────────────────
     async def authorize(self, client: OAuthClientInformationFull, params: AuthorizationParams) -> str:
+        self._purge_expired()
         code = secrets.token_urlsafe(32)
         if params.redirect_uri:
             self.remember_redirect_uri(client.client_id, str(params.redirect_uri))

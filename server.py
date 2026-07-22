@@ -38,7 +38,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mcp.server.auth.provider import AccessToken, AuthorizationParams, TokenVerifier
 from mcp.server.auth.routes import create_auth_routes
-from mcp.server.auth.settings import AuthSettings
+from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import AnyHttpUrl, AnyUrl
@@ -188,15 +188,24 @@ async def _oauth_authorize(request: Request) -> Response:
     client = await _oauth_provider.get_client(client_id)
     if client is None:
         return Response("unknown client_id", status_code=400)
-    params = AuthorizationParams(
-        redirect_uri=AnyUrl(redirect_uri),
-        redirect_uri_provided_explicitly=True,
-        state=qp.get("state"),
-        code_challenge=qp.get("code_challenge"),
-        scopes=qp.get("scope", "").split() if qp.get("scope") else [],
-        resource=qp.get("resource"),
-    )
-    code = await _oauth_provider.authorize(client, params)
+    # Only ever redirect to http(s); refuse exotic schemes (javascript:, data:, ...).
+    if not redirect_uri.lower().startswith(("https://", "http://")):
+        return Response("redirect_uri must be http(s)", status_code=400)
+    # Fail closed on malformed input (missing code_challenge, unparseable URI, ...)
+    # instead of surfacing an unhandled 500, mirroring the SDK's own handler.
+    try:
+        params = AuthorizationParams(
+            redirect_uri=AnyUrl(redirect_uri),
+            redirect_uri_provided_explicitly=True,
+            state=qp.get("state"),
+            code_challenge=qp.get("code_challenge"),
+            scopes=qp.get("scope", "").split() if qp.get("scope") else [],
+            resource=qp.get("resource"),
+        )
+        code = await _oauth_provider.authorize(client, params)
+    except Exception as e:  # noqa: BLE001 — any bad input becomes a 400, never a 500
+        logger.warning("OAuth /authorize rejected a request: %s", type(e).__name__)
+        return Response("invalid authorization request", status_code=400)
     sep = "&" if "?" in redirect_uri else "?"
     location = f"{redirect_uri}{sep}code={code}"
     if params.state:
@@ -205,8 +214,15 @@ async def _oauth_authorize(request: Request) -> Response:
 
 
 if _OAUTH_ENABLED and _oauth_provider is not None:
+    # Dynamic Client Registration MUST stay disabled: this server trusts the manually
+    # configured client_secret as its only real gate, and an open /register would let
+    # anyone self-issue a client (with their own secret) and mint valid tokens. The SDK
+    # currently defaults to disabled — we pin it explicitly so a future refactor or an
+    # upstream default change cannot silently re-open it.
     for _route in create_auth_routes(
-        provider=_oauth_provider, issuer_url=AnyHttpUrl(_MCP_PUBLIC_URL)
+        provider=_oauth_provider,
+        issuer_url=AnyHttpUrl(_MCP_PUBLIC_URL),
+        client_registration_options=ClientRegistrationOptions(enabled=False),
     ):
         if _route.path == "/authorize":
             continue  # replaced by the custom handler below

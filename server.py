@@ -36,10 +36,16 @@ import yfinance as yf
 # Ensure local imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from mcp.server.auth.provider import AccessToken, TokenVerifier
+from mcp.server.auth.provider import AccessToken, AuthorizationParams, TokenVerifier
+from mcp.server.auth.routes import create_auth_routes
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+from pydantic import AnyHttpUrl, AnyUrl
+from starlette.requests import Request
+from starlette.responses import RedirectResponse, Response
+
+from oauth_provider import DualTokenVerifier, PersonalOAuthProvider
 
 from kinvest_common import NotConfiguredError, apply_env_file
 from toss_api import TossAPIError, TossClient
@@ -101,6 +107,33 @@ class StaticTokenVerifier(TokenVerifier):
         return None
 
 
+# ── OAuth 2.1 (multi-client compatibility) ──────────────
+# Optional: when MCP_OAUTH_CLIENT_ID + MCP_OAUTH_CLIENT_SECRET are set, expose a
+# standard OAuth authorization-code flow (PKCE) so OAuth-based clients (ChatGPT,
+# Claude, Cursor, ...) can connect with manually-entered ID/secret. The static
+# bearer token keeps working for direct clients via DualTokenVerifier.
+_OAUTH_CLIENT_ID = os.environ.get("MCP_OAUTH_CLIENT_ID", "").strip()
+_OAUTH_CLIENT_SECRET = os.environ.get("MCP_OAUTH_CLIENT_SECRET", "").strip()
+_OAUTH_ENABLED = bool(MCP_AUTH_TOKEN and _OAUTH_CLIENT_ID and _OAUTH_CLIENT_SECRET)
+
+_oauth_provider = (
+    PersonalOAuthProvider(_OAUTH_CLIENT_ID, _OAUTH_CLIENT_SECRET) if _OAUTH_ENABLED else None
+)
+if MCP_AUTH_TOKEN and not _OAUTH_ENABLED:
+    logger.info(
+        "OAuth disabled (set MCP_OAUTH_CLIENT_ID and MCP_OAUTH_CLIENT_SECRET to enable). "
+        "Static bearer token auth active."
+    )
+
+
+def _resolve_token_verifier() -> TokenVerifier | None:
+    if not MCP_AUTH_TOKEN:
+        return None
+    if _OAUTH_ENABLED and _oauth_provider is not None:
+        return DualTokenVerifier(MCP_AUTH_TOKEN, _oauth_provider)
+    return StaticTokenVerifier(MCP_AUTH_TOKEN)
+
+
 # ── MCP Server ──────────────────────────────────────────
 
 mcp = FastMCP(
@@ -114,7 +147,7 @@ mcp = FastMCP(
         "Supports Korean (KRX/NXT), US, and Japanese markets. "
         "No order creation or trading — ALL endpoints are read-only."
     ),
-    token_verifier=StaticTokenVerifier(MCP_AUTH_TOKEN) if MCP_AUTH_TOKEN else None,
+    token_verifier=_resolve_token_verifier(),
     auth=AuthSettings(
         issuer_url=_MCP_PUBLIC_URL,
         resource_server_url=_MCP_PUBLIC_URL,
@@ -137,6 +170,55 @@ mcp = FastMCP(
     ),
 )
 mcp._mcp_server.version = SERVER_VERSION
+
+# Mount the OAuth authorization-server routes as public custom routes when OAuth is
+# enabled. FastMCP forbids passing auth_server_provider and token_verifier together,
+# so we verify via DualTokenVerifier (above) and mount the OAuth routes manually here.
+# We use the SDK's metadata/token/register handlers, but a CUSTOM /authorize handler:
+# the SDK's validates the redirect_uri against the client's pre-registered list, which
+# we cannot know ahead of time for manually-configured clients (ChatGPT/Claude present
+# their own). For this single-user server we accept the presented redirect_uri.
+async def _oauth_authorize(request: Request) -> Response:
+    assert _oauth_provider is not None
+    qp = request.query_params
+    client_id = qp.get("client_id")
+    redirect_uri = qp.get("redirect_uri")
+    if not client_id or not redirect_uri:
+        return Response("client_id and redirect_uri are required", status_code=400)
+    client = await _oauth_provider.get_client(client_id)
+    if client is None:
+        return Response("unknown client_id", status_code=400)
+    params = AuthorizationParams(
+        redirect_uri=AnyUrl(redirect_uri),
+        redirect_uri_provided_explicitly=True,
+        state=qp.get("state"),
+        code_challenge=qp.get("code_challenge"),
+        scopes=qp.get("scope", "").split() if qp.get("scope") else [],
+        resource=qp.get("resource"),
+    )
+    code = await _oauth_provider.authorize(client, params)
+    sep = "&" if "?" in redirect_uri else "?"
+    location = f"{redirect_uri}{sep}code={code}"
+    if params.state:
+        location += f"&state={params.state}"
+    return RedirectResponse(location, status_code=302)
+
+
+if _OAUTH_ENABLED and _oauth_provider is not None:
+    for _route in create_auth_routes(
+        provider=_oauth_provider, issuer_url=AnyHttpUrl(_MCP_PUBLIC_URL)
+    ):
+        if _route.path == "/authorize":
+            continue  # replaced by the custom handler below
+        mcp.custom_route(
+            _route.path,
+            methods=list(_route.methods or []),
+            name=_route.name,
+        )(_route.endpoint)
+    mcp.custom_route("/authorize", methods=["GET", "POST"], name="oauth-authorize")(
+        _oauth_authorize
+    )
+    logger.info("OAuth 2.1 authorization server enabled (manual client_id/secret).")
 
 # ── Client Singletons (lazy) ────────────────────────────
 

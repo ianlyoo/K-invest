@@ -1,0 +1,49 @@
+﻿[2026-08-23 01:52:35] k-invest Task 6 verification
+README lines: 186 (target ~200, fail if 500+)
+At a glance header: 1 (expect 1)
+At a glance bullets (6 required topics): 6 (expect 6)
+MCP tool call example (tools/call): 3 (expect >=1)
+LLM Evaluation Notes section: 1 (expect 1)
+rule_filter mentions: 2 (expect >=1)
+LLM Judge mentions: 1 (expect >=1)
+docs/eval.md exists: True (lines: 67)
+--- grep At a glance ---
+
+C:\Users\torch\Documents\code\KoreaInvest\README.md:12:## At a glance
+
+
+--- MCP example ---
+
+C:\Users\torch\Documents\code\KoreaInvest\README.md:44:    "method": "tools/call",
+C:\Users\torch\Documents\code\KoreaInvest\README.md:53:# curl ... -H "Authorization: Bearer $OAUTH_ACCESS_TOKEN" -d '{"
+method":"tools/call","params":{"name":"compare_quotes","arguments":{"symbol":"005930"}}}'
+C:\Users\torch\Documents\code\KoreaInvest\README.md:56:Streamable HTTP이므로 `tools/list`로 카탈로그를 먼저 확인한 뒤 `tools/call`로 조회
+한다.
+
+
+--- Evaluation Notes ---
+
+C:\Users\torch\Documents\code\KoreaInvest\README.md:171:## LLM Evaluation Notes
+C:\Users\torch\Documents\code\KoreaInvest\README.md:173:- **숫자 일치 rule (rule_filter)**: LLM 답의 모든 금액·수량·수익률은 `data` 원문과
+ 소수점/단위까지 일치해야 함 — 불일치 시 fail (예: holdings·price·balance 필드).
+C:\Users\torch\Documents\code\KoreaInvest\README.md:174:- **근거 충분성 LLM Judge**: 답이 `data`/`meta.provider` 범위를 벗어난 주장(목표
+가·매수 추천 등)을 하면 Judge가 근거 없음으로 fail.
+C:\Users\torch\Documents\code\KoreaInvest\README.md:175:- **판정 조합**: `rule_filter pass && judge pass`만 최종 pass — rule은 
+수치, Judge는 해석·과장을 각각 잡는다.
+
+
+--- docs/eval.md faithfulness check ---
+
+C:\Users\torch\Documents\code\KoreaInvest\docs\eval.md:1:# K-invest LLM Faithfulness Eval Log
+C:\Users\torch\Documents\code\KoreaInvest\docs\eval.md:3:> Toss/KIS provider 응답과 LLM 답변의 faithfulness를 검증하는 최소 로그.
+C:\Users\torch\Documents\code\KoreaInvest\docs\eval.md:4:> 판정: `rule_filter` (숫자 일치) + `LLM Judge` (근거 충분성) — 둘 다 pass해
+야 최종 pass.
+C:\Users\torch\Documents\code\KoreaInvest\docs\eval.md:43:### 3. Faithfulness 판정
+C:\Users\torch\Documents\code\KoreaInvest\docs\eval.md:47:| **rule_filter — 숫자 일치** | **pass** | 수량 15/8, 평단 71200/182.
+5, 현재가 73800/195.3, 예수금 1240.55가 provider `data`와 소수점까지 일치. 파생 계산(+39,000원 = (73800-71200)*15, +$102.40 = (195.30-182.5
+0)*8)도 산식 검증 pass. |
+C:\Users\torch\Documents\code\KoreaInvest\docs\eval.md:48:| **LLM Judge — 근거 충분성** | **pass** | 답의 모든 수치·종목명이 `data`/`m
+eta.provider` 범위 내이며, `get_toss_holdings`·`get_kis_overseas_balance` 호출로 출처 명시. 범위 밖 주장(목표가·매수/매도 권유) 없음. |
+
+
+PASS: all checks

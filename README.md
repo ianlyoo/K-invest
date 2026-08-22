@@ -11,6 +11,14 @@ K-invest는 **토스증권, 한국투자증권(KIS), SEC EDGAR, yfinance, Binanc
 
 **주문 생성·정정·취소 도구는 없다.** 모든 엔드포인트가 read-only다.
 
+## At a glance
+
+- **MCP**: FastMCP · Streamable HTTP — 단일 MCP 서버로 5개 provider를 묶어 LLM에 read-only 컨텍스트 제공
+- **OAuth 2.1**: single-user Authorization Code flow — `/.well-known/oauth-authorization-server`, `/authorize`, `/token` (둘 다 설정 시 활성화)
+- **read-only invariant**: 주문 생성·정정·취소 도구를 절대 등록하지 않음 — 모든 조회 도구는 read-only
+- **Providers**: Toss Securities · KIS Open API · SEC EDGAR · yfinance · Binance USD-M Futures
+- **Auth**: `MCP_AUTH_TOKEN` (Bearer) 또는 OAuth 2.1 — 둘 다 없으면 기동 거부
+
 ## 아키텍처
 
 ```mermaid

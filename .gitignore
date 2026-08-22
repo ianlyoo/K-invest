@@ -1,0 +1,15 @@
+.env
+*.env
+!*.env.example
+__pycache__/
+*.pyc
+.cache/
+token.json
+.pytest_cache/
+build/
+dist/
+*.egg-info/
+.claude/settings.local.json
+.claude/skills/
+CLAUDE.local.md
+docs/superpowers/

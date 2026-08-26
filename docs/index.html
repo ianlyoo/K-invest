@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K-invest — Read-only investment data MCP server for web LLMs — aggregate Toss Securities, KIS, SEC EDGAR, yfinance and Binance Futures via Model Context Protocol.</title>
+<meta name="description" content="Read-only investment data MCP server for web LLMs — aggregate Toss Securities, KIS, SEC EDGAR, yfinance and Binance Futures via Model Context Protocol.">
+<link rel="canonical" href="https://ianlyoo.github.io/K-invest/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="K-invest — Read-only investment data MCP server for web LLMs — aggregate Toss Securities, KIS, SEC EDGAR, yfinance and Binance Futures via Model Context Protocol.">
+<meta property="og:description" content="Read-only investment data MCP server for web LLMs — aggregate Toss Securities, KIS, SEC EDGAR, yfinance and Binance Futures via Model Context Protocol.">
+<meta property="og:url" content="https://ianlyoo.github.io/K-invest/">
+<meta property="og:site_name" content="K-invest">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="K-invest — Read-only investment data MCP server for web LLMs — aggregate Toss Securities, KIS, SEC EDGAR, yfinance and Binance Futures via Model Context Protocol.">
+<meta name="twitter:description" content="Read-only investment data MCP server for web LLMs — aggregate Toss Securities, KIS, SEC EDGAR, yfinance and Binance Futures via Model Context Protocol.">
+<meta name="twitter:url" content="https://ianlyoo.github.io/K-invest/">
+<meta name="author" content="ianlyoo">
+<meta name="robots" content="index, follow">
+<link rel="stylesheet" href="./styles.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"K-invest","description":"Read-only investment data MCP server for web LLMs — aggregate Toss Securities, KIS, SEC EDGAR, yfinance and Binance Futures via Model Context Protocol.","codeRepository":"https://github.com/ianlyoo/K-invest","url":"https://ianlyoo.github.io/K-invest/","programmingLanguage":"Python","license":"https://spdx.org/licenses/MIT","keywords":["mcp","model-context-protocol","binance","developer-tools","investment-data","kis-api","read-only","sec-edgar","stock-api","toss-securities","typescript","yfinance"],"author":{"@type":"Person","name":"ianlyoo"}}</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header role="banner">
+<div class="container">
+<h1>K-invest</h1>
+<p class="tagline">Read-only investment data MCP server for web LLMs — aggregate Toss Securities, KIS, SEC EDGAR, yfinance and Binance Futures via Model Context Protocol.</p>
+<nav aria-label="Primary">
+<ul>
+<li><a href="https://github.com/ianlyoo/K-invest">GitHub Repository</a></li>
+<li><a href="https://github.com/ianlyoo/K-invest/blob/main/README.md">English</a></li>
+<li><a href="https://github.com/ianlyoo/K-invest/blob/main/README.ko.md">한국어</a></li>
+<li><a href="https://github.com/ianlyoo/K-invest/issues">Issues</a></li>
+<li><a href="https://ianlyoo.github.io/K-invest/">Pages</a></li>
+</ul>
+</nav>
+<nav aria-label="Language">
+<ul>
+<li><a href="https://github.com/ianlyoo/K-invest/blob/main/README.md" lang="en">English</a> | <a href="https://github.com/ianlyoo/K-invest/blob/main/README.ko.md" lang="ko">한국어</a></li>
+</ul>
+</nav>
+</div>
+</header>
+<main id="main">
+<div class="container">
+<section aria-labelledby="overview-heading">
+<h2 id="overview-heading">Overview</h2>
+<p>Read-only investment data MCP server for web LLMs — aggregate Toss Securities, KIS, SEC EDGAR, yfinance and Binance Futures via Model Context Protocol.</p>
+<p>Repository: <a href="https://github.com/ianlyoo/K-invest">https://github.com/ianlyoo/K-invest</a> — Pages: <a href="https://ianlyoo.github.io/K-invest/">https://ianlyoo.github.io/K-invest/</a> — Language: Python — License: <a href="https://spdx.org/licenses/MIT">MIT</a></p>
+<p><a href="https://github.com/ianlyoo/K-invest/blob/main/README.md">README (English)</a> — <a href="https://github.com/ianlyoo/K-invest/blob/main/README.ko.md">README (한국어)</a></p>
+</section>
+<section aria-labelledby="features-heading"><h2 id="features-heading">Features</h2><ul><li><strong>Multi-provider:</strong> Toss Securities, KIS Open API, SEC EDGAR, yfinance, Binance USD-M Futures</li><li><strong>MCP-compatible:</strong> FastMCP Streamable HTTP single /mcp endpoint</li><li><strong>OAuth 2.1 + Bearer:</strong> Authorization Code + PKCE or static MCP_AUTH_TOKEN</li><li><strong>Read-only safety:</strong> No order placement tools</li></ul></section><section aria-labelledby="quickstart-heading"><h2 id="quickstart-heading">Quick start</h2><pre><code>git clone https://github.com/ianlyoo/K-invest.git
+cd K-invest
+pip install -r requirements.txt
+cp .env.example .env
+python3 server.py</code></pre><p>Providers are partially configurable. Expose via HTTPS with sslip.io + Caddy.</p></section><section aria-labelledby="tools-heading"><h2 id="tools-heading">Tools</h2><p>All tools return {ok, data, error, meta} envelope. See README tool catalog.</p></section>
+<section aria-labelledby="links-heading">
+<h2 id="links-heading">Project links</h2>
+<ul>
+<li><a href="https://github.com/ianlyoo/K-invest">Repository: https://github.com/ianlyoo/K-invest</a></li>
+<li><a href="https://github.com/ianlyoo/K-invest/issues">Issues</a></li>
+<li><a href="https://ianlyoo.github.io/K-invest/">Pages canonical: https://ianlyoo.github.io/K-invest/</a></li>
+<li><a href="https://github.com/ianlyoo/K-invest/blob/main/LICENSE">License: MIT</a></li>
+<li><a href="https://github.com/ianlyoo/K-invest/blob/main/README.md">English README</a> | <a href="https://github.com/ianlyoo/K-invest/blob/main/README.ko.md">한국어 README</a></li>
+<li><a href="https://ianlyoo.github.io/K-invest/sitemap.xml">Sitemap</a> — <a href="https://ianlyoo.github.io/K-invest/robots.txt">robots.txt</a></li>
+</ul>
+</section>
+<section aria-labelledby="license-heading">
+<h2 id="license-heading">License and ownership</h2>
+<p>Owner: <a href="https://github.com/ianlyoo">ianlyoo</a> — License: <a href="https://spdx.org/licenses/MIT">MIT</a> — Language: Python</p>
+</section>
+</div>
+</main>
+<footer role="contentinfo">
+<div class="container">
+<p>© 2026 ianlyoo — <a href="https://github.com/ianlyoo/K-invest">K-invest</a> — <a href="https://spdx.org/licenses/MIT">MIT</a> — <a href="https://ianlyoo.github.io/K-invest/sitemap.xml">Sitemap</a> — <a href="https://github.com/ianlyoo/K-invest/blob/main/README.md">English</a> / <a href="https://github.com/ianlyoo/K-invest/blob/main/README.ko.md">한국어</a></p>
+</div>
+</footer>
+</body>
+</html>

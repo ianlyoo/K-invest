@@ -12,7 +12,7 @@ license = { text = "MIT" }
 authors = [{ name = "AhnRyu" }]
 keywords = ["mcp", "toss-securities", "kis", "sec-edgar", "yfinance", "binance", "fastmcp"]
 dependencies = [
-  "mcp>=1.26",
+  "mcp>=1.26,<2",
   "httpx>=0.28",
   "yfinance>=1.2",
   "uvicorn>=0.40",

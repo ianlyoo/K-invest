@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "K-invest"
+version: 0.1.0
+authors:
+  - family-names: "Yoo"
+    given-names: "Ian"
+    alias: "ianlyoo"
+type: software
+license: MIT
+repository-code: "https://github.com/ianlyoo/K-invest"
+url: "https://ianlyoo.github.io/K-invest/"
+homepage: "https://ianlyoo.github.io/K-invest/"
+description: "Read-only investment data MCP server for web LLMs — aggregate Toss Securities, KIS, SEC EDGAR, yfinance and Binance Futures via Model Context Protocol."
+keywords:
+  - binance
+  - developer-tools
+  - investment-data
+  - kis-api
+  - mcp
+  - model-context-protocol
+  - read-only
+  - sec-edgar
+  - stock-api
+  - toss-securities
+  - typescript
+  - yfinance

@@ -1,0 +1,38 @@
+{
+  "name": "k-invest",
+  "version": "0.1.0",
+  "description": "Read-only investment data MCP server for web LLMs — aggregate Toss Securities, KIS, SEC EDGAR, yfinance and Binance Futures via Model Context Protocol.",
+  "keywords": [
+    "binance",
+    "developer-tools",
+    "investment-data",
+    "kis-api",
+    "mcp",
+    "model-context-protocol",
+    "read-only",
+    "sec-edgar",
+    "stock-api",
+    "toss-securities",
+    "typescript",
+    "yfinance"
+  ],
+  "homepage": "https://ianlyoo.github.io/K-invest/",
+  "bugs": {
+    "url": "https://github.com/ianlyoo/K-invest/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ianlyoo/K-invest.git"
+  },
+  "license": "MIT",
+  "author": "ianlyoo",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

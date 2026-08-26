@@ -32,7 +32,6 @@ from mcp.server.auth.provider import (
 )
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 
-
 _MAX_REMEMBERED_REDIRECT_URIS = 10
 
 

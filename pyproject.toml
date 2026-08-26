@@ -24,6 +24,10 @@ Homepage = "https://github.com/ianlyoo/K-invest"
 [project.scripts]
 k-invest = "server:main"
 
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
 [tool.ruff.lint.per-file-ignores]
 # tests use the repo-root sys.path.insert pattern before imports
 "tests/*" = ["E402"]

@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from journal_metadata import identity
+from journal_metadata import identity, legacy_kis_account_key
 
 # Instrument currency → market code, used when a provider omits the market.
 _CURRENCY_MARKET = {"KRW": "KR", "USD": "US", "JPY": "JP", "HKD": "HK", "CNY": "CN"}
@@ -547,7 +547,7 @@ def kis_domestic_transactions(payload: Any, account: str = "kis:domestic") -> li
                 provider="kis",
                 account=account,
                 tx_id=str(row.get("odno") or ""),
-                **{k: v for k, v in identity("kis", account, "KR", str(row.get("odno") or ""), trade_date).items() if k in {"execution_id", "identity_quality", "account_key", "parent_order_id"}},
+                **{k: v for k, v in identity("kis", legacy_kis_account_key(account), "KR", str(row.get("odno") or ""), trade_date).items() if k in {"execution_id", "identity_quality", "account_key", "parent_order_id"}},
                 tx_type=tx_type,
                 trade_date=trade_date,
                 settle_date=None,
@@ -653,7 +653,7 @@ def kis_overseas_ccnl_transactions(payload: Any, account: str = "kis:overseas") 
                 provider="kis",
                 account=account,
                 tx_id=str(row.get("odno") or ""),
-                **{k: v for k, v in identity("kis", account, str(row.get("market") or market_for(currency, symbol)), str(row.get("odno") or ""), trade_date).items() if k in {"execution_id", "identity_quality", "account_key", "parent_order_id"}},
+                **{k: v for k, v in identity("kis", legacy_kis_account_key(account), str(row.get("market") or market_for(currency, symbol)), str(row.get("odno") or ""), trade_date).items() if k in {"execution_id", "identity_quality", "account_key", "parent_order_id"}},
                 tx_type=tx_type,
                 trade_date=trade_date,
                 settle_date=None,

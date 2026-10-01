@@ -32,7 +32,7 @@ class OAuthStore:
             os.chmod(self.path, 0o600)
             with self.connection() as db:
                 version = db.execute("PRAGMA user_version").fetchone()[0]
-                if version not in (0, 1):
+                if version not in (0, 1, 2):
                     raise AuthStoreUnavailable()
                 db.executescript("""
                     CREATE TABLE IF NOT EXISTS grants (
@@ -42,8 +42,17 @@ class OAuthStore:
                       revoked INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(kind, digest));
                     CREATE INDEX IF NOT EXISTS grants_expiry ON grants(expires);
                     CREATE TABLE IF NOT EXISTS redirects (client TEXT PRIMARY KEY, uris TEXT NOT NULL);
-                    PRAGMA user_version=1;
+
                 """)
+                db.execute("BEGIN IMMEDIATE")
+                columns = {row[1] for row in db.execute("PRAGMA table_info(grants)")}
+                for name, definition in {"consumed_at": "INTEGER", "parent": "TEXT NOT NULL DEFAULT ''",
+                                         "pair": "TEXT NOT NULL DEFAULT ''", "used_at": "INTEGER"}.items():
+                    if name not in columns:
+                        db.execute(f"ALTER TABLE grants ADD COLUMN {name} {definition}")
+                db.execute("CREATE INDEX IF NOT EXISTS grants_parent ON grants(parent)")
+                db.execute("CREATE INDEX IF NOT EXISTS grants_pair ON grants(pair)")
+                db.execute("PRAGMA user_version=2")
         except (OSError, sqlite3.Error) as exc:
             raise AuthStoreUnavailable() from exc
 
@@ -74,9 +83,9 @@ class OAuthStore:
 
     @staticmethod
     def insert(db, record: dict[str, Any]) -> None:
-        db.execute("INSERT INTO grants(kind,digest,client,metadata,expires,family) VALUES(?,?,?,?,?,?)", (
+        db.execute("INSERT INTO grants(kind,digest,client,metadata,expires,family,parent,pair) VALUES(?,?,?,?,?,?,?,?)", (
             record["kind"], digest(record["value"]), record["client"],
-            json.dumps(record["metadata"]), record["expires"], record["family"],
+            json.dumps(record["metadata"]), record["expires"], record["family"], record.get("parent", ""), record.get("pair", ""),
         ))
 
     def issue(self, records: list[dict[str, Any]], consume: tuple[str, str, str] | None = None) -> bool:
@@ -93,6 +102,71 @@ class OAuthStore:
                 self.insert(db, record)
             # Bounded retention of expired/revoked/consumed evidence, not token values.
             db.execute("DELETE FROM grants WHERE expires < ?", (int(time.time()) - 7 * 86400,))
+        return True
+
+    @staticmethod
+    def _refresh_allowed(db, row, client: str, now: int, grace: int) -> bool:
+        if row is None or row["revoked"]:
+            return False
+        wrong_client = row["client"] != client
+        late_replay = row["consumed"] and (row["consumed_at"] is None or now >= row["consumed_at"] + grace)
+        if wrong_client or late_replay:
+            db.execute("UPDATE grants SET revoked=1 WHERE family=?", (row["family"],))
+            return False
+        return row["expires"] > now
+
+    @staticmethod
+    def _used(db, row, now: int, grace: int) -> None:
+        if row["pair"]:
+            db.execute("UPDATE grants SET used_at=COALESCE(used_at,?) WHERE pair=?", (now, row["pair"]))
+        else:
+            db.execute("UPDATE grants SET used_at=COALESCE(used_at,?) WHERE kind=? AND digest=?", (now, row["kind"], row["digest"]))
+        # Do not choose a response winner during the grace. After it, actual use
+        # chooses a branch; preserve all siblings that have already been used.
+        if row["parent"]:
+            parent = db.execute("SELECT consumed_at FROM grants WHERE kind='refresh' AND digest=?", (row["parent"],)).fetchone()
+            if parent and parent[0] is not None and now >= parent[0] + grace:
+                db.execute("""UPDATE grants SET revoked=1 WHERE parent=? AND pair!=? AND used_at IS NULL""",
+                           (row["parent"], row["pair"]))
+
+    def load_refresh(self, value: str, client: str, grace: int):
+        with self.connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT * FROM grants WHERE kind='refresh' AND digest=?", (digest(value),)).fetchone()
+            if not self._refresh_allowed(db, row, client, int(time.time()), grace):
+                return None
+            return {**dict(row), "metadata": json.loads(row["metadata"])}
+
+    def mark_access_used(self, value: str, grace: int) -> bool:
+        with self.connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT * FROM grants WHERE kind='access' AND digest=?", (digest(value),)).fetchone()
+            now = int(time.time())
+            if row is None or row["revoked"] or row["expires"] <= now:
+                return False
+            self._used(db, row, now, grace)
+            return True
+
+    def rotate(self, value: str, client: str, records: list[dict[str, Any]], grace: int) -> bool:
+        with self.connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT * FROM grants WHERE kind='refresh' AND digest=?", (digest(value),)).fetchone()
+            now = int(time.time())
+            if not self._refresh_allowed(db, row, client, now, grace):
+                return False
+            original = json.loads(row["metadata"])
+            scopes = set(records[0]["metadata"]["scopes"])
+            if not scopes.issubset(original["scopes"]):
+                return False
+            # A retry cannot restore scopes removed by the first rotation.
+            children = db.execute("SELECT metadata FROM grants WHERE kind='refresh' AND parent=? AND revoked=0", (row["digest"],)).fetchall()
+            if any(not scopes.issubset(json.loads(child[0])["scopes"]) for child in children):
+                return False
+            self._used(db, row, now, grace)
+            db.execute("UPDATE grants SET consumed=1, consumed_at=COALESCE(consumed_at,?) WHERE kind='refresh' AND digest=?", (now, row["digest"]))
+            for record in records:
+                self.insert(db, {**record, "parent": row["digest"]})
+            db.execute("DELETE FROM grants WHERE expires < ?", (now - 7 * 86400,))
         return True
 
     def revoke(self, kind: str, value: str) -> None:

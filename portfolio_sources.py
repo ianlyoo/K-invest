@@ -20,7 +20,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any, Callable, Iterable
 
-from journal_metadata import identity, source_metadata
+from journal_metadata import identity, legacy_kis_account_key, source_metadata
 from portfolio_model import (
     CashBalance,
     FxRates,
@@ -328,7 +328,7 @@ class PortfolioCollector:
                 if payload is not None:
                     client = self._providers.kis_client(label)
                     collection.transactions.extend(self._journal_identity(kis_domestic_transactions(payload, domestic),
-                        getattr(client, "journal_account_key", domestic)))
+                        getattr(client, "journal_account_key", legacy_kis_account_key(domestic))))
                     self._note_truncation(collection, source, payload)
 
             overseas = kis_source(label, "overseas")
@@ -345,7 +345,7 @@ class PortfolioCollector:
                 if payload is not None:
                     client = self._providers.kis_client(label)
                     collection.transactions.extend(self._journal_identity(kis_overseas_transactions(payload, overseas),
-                        getattr(client, "journal_account_key", overseas)))
+                        getattr(client, "journal_account_key", legacy_kis_account_key(overseas))))
                     self._note_truncation(collection, source, payload)
                 else:
                     fallback_source = f"{overseas}:trades_fallback"
@@ -360,7 +360,7 @@ class PortfolioCollector:
                     if fallback is not None:
                         client = self._providers.kis_client(label)
                         collection.transactions.extend(self._journal_identity(kis_overseas_ccnl_transactions(fallback, overseas),
-                            getattr(client, "journal_account_key", overseas)))
+                            getattr(client, "journal_account_key", legacy_kis_account_key(overseas))))
                         self._note_truncation(collection, fallback_source, fallback)
 
         if symbol:

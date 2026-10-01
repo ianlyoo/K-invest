@@ -1228,6 +1228,9 @@ def get_kis_trade_history(start_date: str = "", end_date: str = "", account: str
             results.append({"account": label, "data": payload, "error": None})
         data = {"accounts": results} if account == "all" else results[0]["data"]
         applicable = [x for x in sources if x["supported"]]
+        if account != "all" and results[0]["error"]:
+            return {"ok": False, "data": None, "error": results[0]["error"],
+                    "meta": {"provider": "kis", "sources": sources, "complete": False}}
         return _ok(data, provider="kis", account=account or registry.default_label(), sources=sources,
                    complete=bool(applicable) and all(x["complete"] is True for x in applicable))
     except Exception as e:
@@ -2377,14 +2380,15 @@ def get_service_health(mode: Literal["passive"] = "passive") -> dict[str, Any]:
     if mode != "passive":
         return _fail("INVALID_MODE", "Only passive health is supported.")
     configured = {
-        "toss": True if _toss_accounts is not None or (os.environ.get("TOSS_CLIENT_ID") and os.environ.get("TOSS_CLIENT_SECRET")) else None if os.environ.get("TOSS_CREDS_FILE") else False,
+        "toss": True if _toss_accounts is not None or os.environ.get("TOSS_ACCOUNTS_JSON") or (os.environ.get("TOSS_CLIENT_ID") and os.environ.get("TOSS_CLIENT_SECRET")) else None if os.environ.get("TOSS_CREDS_FILE") else False,
         "kis": True if _kis_accounts is not None or os.environ.get("KIS_ACCOUNTS_JSON") or (os.environ.get("KIS_APP_KEY") and os.environ.get("KIS_APP_SECRET")) else None if os.environ.get("KIS_ENV_FILE") else False,
     }
     data = _health_status.report({k: bool(v) if v is not None else None for k, v in configured.items()})
     store_status = _oauth_provider.store.health() if _oauth_provider is not None else "disabled"
     data["auth"] = {"store_status": store_status, "restart_durable": _oauth_provider is not None,
                     "access_ttl_seconds": _oauth_provider.access_ttl if _oauth_provider else None,
-                    "refresh_ttl_seconds": _oauth_provider.refresh_ttl if _oauth_provider else None}
+                    "refresh_ttl_seconds": _oauth_provider.refresh_ttl if _oauth_provider else None,
+                    "refresh_grace_seconds": _oauth_provider.refresh_grace if _oauth_provider else None}
     if store_status == "unavailable":
         data["overall_status"] = "auth_store_unavailable"
     return _ok(data, provider="k-invest", mode="passive", cache_age_seconds=None)

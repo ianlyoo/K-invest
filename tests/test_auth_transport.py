@@ -86,7 +86,14 @@ def test_pkce_initialize_notification_list_health_refresh_and_protocol(tmp_path,
         assert response.json()["refresh_token"] != tokens["refresh_token"]
         replay = client.post("/token", data={"grant_type": "refresh_token", "client_id": "fixture-client",
             "client_secret": "fixture-secret", "refresh_token": tokens["refresh_token"]})
-        assert replay.status_code == 400 and replay.json()["error"] == "invalid_grant"
+        assert replay.status_code == 200
+        assert replay.json()["refresh_token"] != response.json()["refresh_token"]
+        import time
+        now = time.time()
+        monkeypatch.setattr("oauth_provider.time.time", lambda: now + 60)
+        late = client.post("/token", data={"grant_type": "refresh_token", "client_id": "fixture-client",
+            "client_secret": "fixture-secret", "refresh_token": tokens["refresh_token"]})
+        assert late.status_code == 400 and late.json()["error"] == "invalid_grant"
         assert client.post("/register", json={}).status_code == 404
 
 

@@ -22,7 +22,7 @@ _PROTOCOLS = {"2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25"}
 def response_reason(status: int, body: bytes) -> str:
     if status < 400:
         return "ok"
-    if b"invalid_client" in body:
+    if b"invalid_client" in body or b"unauthorized_client" in body:
         return "client_auth_failed"
     if status == 401:
         return auth_reason.get() or "auth_invalid"

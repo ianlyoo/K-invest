@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from journal_metadata import annotate_rows, identity
+from journal_metadata import annotate_rows, identity, legacy_kis_account_key
 from portfolio_model import kis_overseas_transactions, toss_transactions
 from toss_api import HistoryRows, TossClient
 
@@ -28,7 +28,7 @@ def test_identity_namespaces_stable_across_updates_and_tool_shapes():
 def test_kis_compact_date_and_scope_alias_match():
     raw = {"odno": "fixture-order", "ord_dt": "20260930"}
     a = annotate_rows([raw], "kis", "kis:primary", "KR")[0]
-    b = identity("kis", "kis:domestic", "KR", "fixture-order", "2026-09-30")
+    b = identity("kis", legacy_kis_account_key("kis:domestic"), "KR", "fixture-order", "2026-09-30")
     assert a["execution_id"] == b["execution_id"]
 
 

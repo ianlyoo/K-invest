@@ -8,12 +8,17 @@ from typing import Any
 from health_status import timestamp
 
 
+def legacy_kis_account_key(source: str) -> str:
+    """Translate ledger scope aliases only; never rewrite a canonical registry key."""
+    if source in {"kis:domestic", "kis:overseas"}:
+        return "kis:primary"
+    if source.startswith("kis:") and source.endswith((":domestic", ":overseas")):
+        return source.rsplit(":", 1)[0]
+    return source
+
+
 def identity(provider: str, account_key: str, market: str, native_id: str,
              trade_date: str, *, kind: str = "order_aggregate", sequence: str = "") -> dict[str, Any]:
-    if provider == "kis":
-        account_key = account_key.removesuffix(":domestic").removesuffix(":overseas")
-        if account_key == "kis":
-            account_key = "kis:primary"
     if len(trade_date) == 8 and trade_date.isdigit():
         trade_date = f"{trade_date[:4]}-{trade_date[4:6]}-{trade_date[6:]}"
     parts = ["v1", provider, account_key, market, trade_date, native_id, sequence]

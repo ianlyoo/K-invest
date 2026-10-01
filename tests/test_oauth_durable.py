@@ -27,7 +27,9 @@ async def issue(p, scopes=None):
 
 
 @pytest.mark.asyncio
-async def test_restart_rotation_resource_scope_and_replay(tmp_path):
+async def test_restart_rotation_resource_scope_and_replay(tmp_path, monkeypatch):
+    clock = [100000]
+    monkeypatch.setattr("oauth_provider.time.time", lambda: clock[0])
     p = provider(tmp_path, resource_url="https://example.invalid")
     client, tokens = await issue(p)
     restarted = provider(tmp_path, resource_url="https://example.invalid/")
@@ -38,6 +40,8 @@ async def test_restart_rotation_resource_scope_and_replay(tmp_path):
     assert (await restarted.load_access_token(successor.access_token)).resource == "https://example.invalid/"
     assert (await restarted.load_access_token(successor.access_token)).scopes == []
     assert await restarted.load_refresh_token(client, successor.refresh_token)
+    assert await restarted.load_refresh_token(client, tokens.refresh_token)
+    clock[0] += 60
     assert await restarted.load_refresh_token(client, tokens.refresh_token) is None
     # Replay invalidates the successor family, including existing access tokens.
     assert await restarted.load_refresh_token(client, successor.refresh_token) is None
@@ -81,11 +85,12 @@ async def test_code_survives_restart_single_use_client_scope_audience(tmp_path):
     with pytest.raises(TokenError):
         await restarted.exchange_authorization_code(client, code)
     other_client = client.model_copy(update={"client_id": "other"})
-    assert await restarted.load_refresh_token(other_client, token.refresh_token) is None
     refresh = await restarted.load_refresh_token(client, token.refresh_token)
     with pytest.raises(TokenError):
         await restarted.exchange_refresh_token(client, refresh, ["write"])
     assert await provider(tmp_path, resource_url="https://another.invalid/").load_access_token(token.access_token) is None
+    assert await restarted.load_refresh_token(other_client, token.refresh_token) is None
+    assert await restarted.load_refresh_token(client, token.refresh_token) is None
 
 
 @pytest.mark.asyncio
@@ -134,7 +139,7 @@ async def test_no_raw_credentials_on_disk_and_store_outage(tmp_path):
     assert not p.store.path.exists()
 
 
-def test_simultaneous_rotation_one_winner(tmp_path):
+def test_simultaneous_rotation_preserves_both_responses(tmp_path):
     p = provider(tmp_path)
     client, tokens = asyncio.run(issue(p))
     def rotate():
@@ -144,13 +149,17 @@ def test_simultaneous_rotation_one_winner(tmp_path):
             if not grant:
                 return False
             try:
-                await candidate.exchange_refresh_token(client, grant, ["read"])
-                return True
+                return await candidate.exchange_refresh_token(client, grant, ["read"])
             except TokenError:
                 return False
         return asyncio.run(work())
     with ThreadPoolExecutor(max_workers=2) as pool:
-        assert sum(pool.map(lambda _: rotate(), range(2))) == 1
+        responses = list(pool.map(lambda _: rotate(), range(2)))
+    assert all(responses)
+    assert responses[0].refresh_token != responses[1].refresh_token
+    for response in reversed(responses):
+        assert asyncio.run(p.load_access_token(response.access_token))
+        assert asyncio.run(p.load_refresh_token(client, response.refresh_token))
 
 
 @pytest.mark.parametrize("value", ["0", "-1", "invalid", "999999999"])

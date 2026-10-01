@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 
@@ -172,6 +173,8 @@ def test_ttl_validation(tmp_path, monkeypatch, value):
 def test_store_rejects_unsafe_directory_and_unknown_schema(tmp_path):
     unsafe = tmp_path / "unsafe"
     unsafe.mkdir(mode=0o755)
+    # mkdir's mode is masked by the deploy umask; this fixture must stay public.
+    os.chmod(unsafe, 0o755)
     with pytest.raises(AuthStoreUnavailable):
         OAuthStore(unsafe / "state.sqlite3")
     safe = provider(tmp_path).store

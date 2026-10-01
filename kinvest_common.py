@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 
@@ -40,3 +42,20 @@ def apply_env_file(path: Path) -> None:
     """setdefault os.environ from an env file (existing env vars win)."""
     for key, value in load_env_file(path).items():
         os.environ.setdefault(key, value)
+
+
+def retry_after_seconds(value: str | None) -> int | None:
+    """Parse a bounded Retry-After without retaining arbitrary header text."""
+    if not value:
+        return None
+    try:
+        if value.isascii() and value.isdigit():
+            delay = int(value)
+        else:
+            deadline = parsedate_to_datetime(value)
+            if deadline.tzinfo is None:
+                deadline = deadline.replace(tzinfo=timezone.utc)
+            delay = max(0, int((deadline-datetime.now(timezone.utc)).total_seconds()))
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return delay if 0 <= delay <= 86400 else None

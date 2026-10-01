@@ -48,4 +48,4 @@ def classify_error(exc: Exception) -> dict:
     if kind == "invalid_request" and "ISO YYYY-MM-DD" in str(exc):
         message = "Dates must use ISO YYYY-MM-DD."
     return {"code": legacy, "kind": kind, "message": message, "provider": provider,
-            "upstream_status": status, "retryable": kind in {"provider_unavailable", "rate_limited", "auth_store_unavailable"}}
+            "upstream_status": status, "retry_after_seconds": getattr(exc, "retry_after_seconds", None), "retryable": kind in {"provider_unavailable", "rate_limited", "auth_store_unavailable"}}

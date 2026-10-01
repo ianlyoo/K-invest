@@ -19,6 +19,7 @@ from typing import Any
 import httpx
 
 from kinvest_common import cache_dir as _default_cache_dir
+from kinvest_common import retry_after_seconds
 
 logger = logging.getLogger("k-invest.toss")
 
@@ -46,9 +47,10 @@ RATE_LIMITS = {
 class TossAPIError(Exception):
     """Raised when the Toss API returns an error."""
 
-    def __init__(self, status: int, body: Any):
+    def __init__(self, status: int, body: Any, retry_after: int | None = None):
         self.status = status
         self.body = body
+        self.retry_after_seconds = retry_after
         msg = self._extract_message(body)
         super().__init__(f"Toss API {status}: {msg}")
 
@@ -163,7 +165,7 @@ class TossClient:
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         if resp.status_code != 200:
-            raise TossAPIError(resp.status_code, self._safe_json(resp))
+            raise TossAPIError(resp.status_code, self._safe_json(resp), retry_after=retry_after_seconds(resp.headers.get("Retry-After")))
 
         body = resp.json()
         token = body["access_token"]
@@ -205,7 +207,7 @@ class TossClient:
             resp = self._http.get(path, params=params, headers=headers)
 
         if resp.status_code != 200:
-            raise TossAPIError(resp.status_code, self._safe_json(resp))
+            raise TossAPIError(resp.status_code, self._safe_json(resp), retry_after=retry_after_seconds(resp.headers.get("Retry-After")))
 
         return resp.json()
 

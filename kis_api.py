@@ -23,7 +23,7 @@ from typing import Any
 
 import httpx
 
-from kinvest_common import NotConfiguredError, load_env_file
+from kinvest_common import NotConfiguredError, load_env_file, retry_after_seconds
 from kinvest_common import cache_dir as _default_cache_dir
 
 logger = logging.getLogger("k-invest.kis")
@@ -124,6 +124,8 @@ def _is_rate_limited(resp: Any) -> bool:
     KIS returns HTTP 500 with rt_cd=1 / msg_cd=EGW00201 for this, so the status
     code alone cannot distinguish it from a real server error.
     """
+    if resp.status_code == 429:
+        return True
     body = _error_body(resp)
     return isinstance(body, dict) and str(body.get("msg_cd", "")).upper() == RATE_LIMIT_MSG_CD
 
@@ -131,9 +133,10 @@ def _is_rate_limited(resp: Any) -> bool:
 class KISAPIError(Exception):
     """Raised when the KIS API returns an error."""
 
-    def __init__(self, status: int, body: Any, msg: str = ""):
+    def __init__(self, status: int, body: Any, msg: str = "", retry_after: int | None = None):
         self.status = status
         self.body = body
+        self.retry_after_seconds = retry_after
         super().__init__(msg or f"KIS API {status}: {body}")
 
     @property
@@ -352,6 +355,11 @@ class KISClient:
             if not _is_rate_limited(resp):
                 break
             delay = MIN_REQUEST_INTERVAL * (2**attempt) + 0.25
+            requested_delay = retry_after_seconds(resp.headers.get("Retry-After"))
+            if requested_delay is not None:
+                if requested_delay > 60:
+                    break  # return retry metadata rather than block or retry early
+                delay = max(delay, requested_delay)
             logger.warning(
                 "KIS rate limit (%s) on %s, retrying in %.2fs (attempt %d/%d)",
                 RATE_LIMIT_MSG_CD, path, delay, attempt + 1, RATE_LIMIT_RETRIES,
@@ -360,7 +368,7 @@ class KISClient:
             resp = _send()
 
         if resp.status_code != 200:
-            raise KISAPIError(resp.status_code, _error_body(resp))
+            raise KISAPIError(resp.status_code, _error_body(resp), retry_after=retry_after_seconds(resp.headers.get("Retry-After")))
 
         data = resp.json()
         rt_cd = str(data.get("rt_cd", ""))

@@ -22,11 +22,12 @@ Transport: Streamable HTTP (https://modelcontextprotocol.io/specification/2025-0
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import secrets
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlparse
@@ -46,7 +47,7 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
 import portfolio_engine
-from auth_observability import AuthObservability
+from auth_observability import AuthObservability, request_id_context
 from binance_futures_api import BinanceFuturesClient
 from error_taxonomy import classify_error
 from health_status import HealthStatus
@@ -443,10 +444,13 @@ def _format_error(e: Exception) -> dict[str, Any]:
     provider = error.get("provider")
     if provider:
         _health_status.record(provider, status=error["kind"], error_code=error["kind"])
-    logger.warning("provider failure: provider=%s kind=%s", provider, error["kind"])
+    logger.warning("%s", json.dumps({"timestamp": datetime.now(timezone.utc).isoformat(),
+        "request_id": request_id_context.get(), "layer": "broker" if provider else "tool",
+        "provider": provider, "reason": error["kind"], "upstream_status": error["upstream_status"]}))
     result = _fail(error["code"], error["message"], provider=provider or "",
                    upstream_status=error["upstream_status"], retryable=error["retryable"])
     result["error"]["kind"] = error["kind"]
+    result["error"]["retry_after_seconds"] = error["retry_after_seconds"]
     return result
 
 

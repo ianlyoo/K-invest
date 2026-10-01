@@ -53,3 +53,25 @@ def test_service_health_never_builds_clients_or_reads_credentials(monkeypatch):
     result = server.get_service_health()
     assert result["ok"] and result["meta"]["mode"] == "passive"
     assert result["data"]["overall_status"] == "unknown"
+
+
+def test_bounded_retry_after_metadata_and_correlated_broker_log(caplog):
+    import json
+    import logging
+
+    import server
+    from auth_observability import request_id_context
+    from kinvest_common import retry_after_seconds
+    assert retry_after_seconds("7") == 7
+    assert retry_after_seconds("fixture-sensitive") is None
+    assert retry_after_seconds("999999999999") is None
+    reset = request_id_context.set("fixture-request-reference")
+    try:
+        with caplog.at_level(logging.WARNING, logger="k-invest"):
+            result = server._format_error(TossAPIError(429, {"secret": "fixture-sensitive"}, retry_after=7))
+    finally:
+        request_id_context.reset(reset)
+    assert result["error"]["retry_after_seconds"] == 7
+    event = json.loads(next(r.message for r in caplog.records if r.name == "k-invest"))
+    assert event["request_id"] == "fixture-request-reference" and event["layer"] == "broker"
+    assert "fixture-sensitive" not in str(result) + str(event)

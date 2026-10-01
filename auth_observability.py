@@ -10,6 +10,8 @@ from urllib.parse import parse_qs
 
 from oauth_store import AuthStoreUnavailable
 
+request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
+
 auth_reason: ContextVar[str | None] = ContextVar("auth_reason", default=None)
 logger = logging.getLogger("k-invest.auth")
 _PATHS = {"/mcp", "/token", "/authorize", "/revoke", "/healthz",
@@ -60,6 +62,7 @@ class AuthObservability:
         version = headers.get(b"mcp-protocol-version", b"").decode("ascii", errors="ignore")
         protocol = version if version in _PROTOCOLS else ("absent" if not version else "unsupported")
         request_id = uuid.uuid4().hex
+        request_reset = request_id_context.set(request_id)
 
         async def safe_receive():
             message = await receive()
@@ -102,3 +105,4 @@ class AuthObservability:
                 "reason": reason, "grant_type": grant, "protocol_version": protocol}
             logger.info("%s", json.dumps(event, sort_keys=True))
             auth_reason.reset(reset)
+            request_id_context.reset(request_reset)

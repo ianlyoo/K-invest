@@ -565,3 +565,20 @@ def test_reversed_range_is_passed_through_to_kis(start, end):
         return {"rt_cd": "0", "output1": [], "output2": {}}, "D"
 
     FakeKIS(responder).get_domestic_trade_history(start, end)
+
+
+def test_http_429_honors_retry_after_without_long_blocking(monkeypatch):
+    monkeypatch.setattr(kis_api, "MIN_REQUEST_INTERVAL", 0.0)
+    slept = []
+    monkeypatch.setattr(kis_api.time, "sleep", slept.append)
+    response = FakeResponse({}, status_code=429)
+    response.headers["Retry-After"] = "7"
+    client = HttpKIS([response, FakeResponse({"rt_cd": "0"})])
+    client._request("/fixture", {}, "fixture")
+    assert slept == [7]
+    response.headers["Retry-After"] = "120"
+    client = HttpKIS([response])
+    with pytest.raises(KISAPIError) as captured:
+        client._request("/fixture", {}, "fixture")
+    assert captured.value.retry_after_seconds == 120
+    assert len(client.sent) == 1

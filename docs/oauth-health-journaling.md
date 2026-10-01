@@ -89,7 +89,7 @@ the composite response was obtained; always inspect source status and completene
 
 Toss cap, missing/repeated cursor and page-limit conditions now report truncation.
 No new cursor/checkpoint/backfill/event subsystem is included. Invest-desk owns
-those responsibilities. New KIS rate-limit retries are capped at two with backoff.
+those responsibilities. New KIS rate-limit retries are capped at two with backoff and honor safe Retry-After values. Delays over 60 seconds return retry metadata rather than blocking or retrying early. Tool errors add `retry_after_seconds` when known. Broker failure events share the HTTP request ID.
 
 ## Validation
 

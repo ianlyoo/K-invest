@@ -5,6 +5,7 @@ https://github.com/systemd/systemd/blob/main/man/systemd.exec.xml
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -14,6 +15,9 @@ import sys
 from pathlib import Path
 
 STATE = Path('/var/lib/toss-mcp/oauth')
+UPGRADE_FROM = 'cc4192b0b61d395ff1ee9c9db5d2e9a015bd8ab3'
+UPGRADE_DIGEST = '56a8e552e2862ab79ce2c2999264643851e86995a774273d70b799bf177bd271'
+MANAGED_DROPIN = Path('/etc/systemd/system/toss-mcp.service.d/90-durable-oauth.conf')
 SANDBOX_NAMES = ('ProtectSystem', 'ProtectHome', 'ReadOnlyPaths', 'InaccessiblePaths', 'ReadWritePaths', 'PrivateTmp')
 PROPERTY_NAMES = SANDBOX_NAMES + ('User', 'FragmentPath', 'WorkingDirectory', 'ActiveState',
     'MainPID', 'DropInPaths', 'EnvironmentFiles', 'RootDirectory', 'RootImage', 'BindReadOnlyPaths', 'TemporaryFileSystem')
@@ -93,11 +97,21 @@ def private_unit_read(path):
     return subprocess.check_output(['sudo', '-n', 'cat', str(path)], text=True, stderr=subprocess.DEVNULL)
 
 
-def main(revision):
+def upgrade_source_verified():
+    content = private_unit_read(MANAGED_DROPIN)
+    receipt = private_unit_read(Path('/var/lib/toss-mcp') / ('rollback-' + UPGRADE_FROM) / 'installed-dropin.sha256')
+    return hashlib.sha256(content.encode()).hexdigest() == UPGRADE_DIGEST and receipt.strip() == f'{UPGRADE_DIGEST}  {MANAGED_DROPIN}'
+
+
+def main(revision, mode='deploy'):
     if not re.fullmatch('[0-9a-f]{40}', revision):
         print('precheck_failed: RevisionFormat')
         return 1
     REV = revision
+    if mode not in ('deploy', 'upgrade'):
+        print('precheck_failed: ModeFormat')
+        return 1
+    upgrade = mode == 'upgrade'
     checks, conflicts, errors = {}, [], []
     stage = 'systemctl_properties'
     # Query once, retaining effective sandbox values privately.
@@ -112,17 +126,26 @@ def main(revision):
         old = Path(prop('WorkingDirectory'))
         new = Path('/home/ubuntu/toss-mcp-releases') / REV
         checks['service_identity'] = (prop('User') == 'ubuntu' and
-            prop('FragmentPath') == '/etc/systemd/system/toss-mcp.service' and old == Path('/home/ubuntu/toss-mcp'))
+            prop('FragmentPath') == '/etc/systemd/system/toss-mcp.service' and
+            old == (Path('/home/ubuntu/toss-mcp-releases') / UPGRADE_FROM if upgrade else Path('/home/ubuntu/toss-mcp')))
         checks['currently_running'] = prop('ActiveState') == 'active' and int(prop('MainPID')) > 0
         stage = 'exclusive_target_metadata'
-        targets = (new, Path('/var/lib/toss-mcp/rollback-'+REV),
-                   Path('/etc/systemd/system/toss-mcp.service.d/90-durable-oauth.conf'))
+        targets = (new, Path('/var/lib/toss-mcp/rollback-'+REV))
+        if not upgrade:
+            targets += (MANAGED_DROPIN,)
         checks['exclusive_targets_available'] = all(not p.exists() and not p.is_symlink() for p in targets)
+        if upgrade:
+            stage = 'upgrade_source_digest'
+            checks['approved_upgrade_source'] = upgrade_source_verified()
+            if not checks['approved_upgrade_source']:
+                raise ValueError('UpgradeSourceMismatch')
         stage = 'dropin_read_and_field_parse'
         sensitive_fields = {'KINVEST_OAUTH_STATE_DIR', 'MCP_OAUTH_TOKEN_TTL',
                             'MCP_OAUTH_REFRESH_TOKEN_TTL', 'MCP_OAUTH_REFRESH_GRACE_SECONDS'}
         direct = {'WorkingDirectory', 'ExecStart', 'UMask'}
         for file in shlex.split(prop('DropInPaths')):
+            if upgrade and Path(file) == MANAGED_DROPIN:
+                continue  # Only this already-digest-verified drop-in is replaced.
             lines = private_unit_read(file).replace('\\\n', '').splitlines()
             section = ''
             for raw in lines:
@@ -189,6 +212,7 @@ def main(revision):
         if failures:
             errors.append({'class': 'SandboxConflict', 'message': stage, 'names': failures})
         state = Path('/var/lib/toss-mcp/oauth')
+        checks['existing_database_required_for_upgrade'] = not upgrade or (state / 'oauth.sqlite3').is_file()
         ancestor = state
         while not ancestor.exists():
             ancestor = ancestor.parent
@@ -211,4 +235,4 @@ def main(revision):
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv[1] if len(sys.argv) == 2 else ''))
+    sys.exit(main(sys.argv[1] if len(sys.argv) in (2, 3) else '', sys.argv[2] if len(sys.argv) == 3 else 'deploy'))

@@ -64,18 +64,17 @@ def initialize(client, headers=None):
         'clientInfo': {'name': 'synthetic', 'version': '1'}}, headers)
 
 
-@pytest.mark.parametrize('peer', ['127.0.0.1', '::1'])
-def test_direct_loopback_lists_only_exact_allowlist(peer):
+def test_direct_loopback_lists_only_exact_allowlist():
     app, fallback, _ = application()
-    with TestClient(app.streamable_http_app(), base_url=URL, client=(peer, 12345)) as client:
+    with TestClient(app.streamable_http_app(), base_url=URL, client=('127.0.0.1', 12345)) as client:
         assert initialize(client).status_code == 200
         result = rpc(client, 'tools/list').json()['result']
         assert {tool['name'] for tool in result['tools']} == SERVICE_READ_TOOLS
     fallback.verify_token.assert_not_awaited()
 
 
-@pytest.mark.parametrize('peer', ['198.51.100.1', '127.0.0.2', '::ffff:127.0.0.1', 'testclient'])
-def test_non_loopback_service_token_rejected_without_oauth_fallback(peer):
+@pytest.mark.parametrize('peer', ['::1', '198.51.100.1', '127.0.0.2', '::ffff:127.0.0.1', 'testclient'])
+def test_other_peers_service_token_rejected_without_oauth_fallback(peer):
     app, fallback, called = application()
     with TestClient(app.streamable_http_app(), base_url=URL, client=(peer, 12345)) as client:
         assert rpc(client, 'tools/list').status_code == 401

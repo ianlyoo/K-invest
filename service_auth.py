@@ -69,7 +69,7 @@ class ServicePeerMiddleware:
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
         peer = scope.get("client")
-        direct = bool(peer and peer[0] in {"127.0.0.1", "::1"}) and not any(
+        direct = bool(peer and peer[0] == "127.0.0.1") and not any(
             key.lower() in _PROXY_HEADERS for key, _ in scope.get("headers", [])
         )
         reset = _direct_loopback.set(direct)

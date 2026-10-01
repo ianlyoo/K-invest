@@ -83,7 +83,7 @@ when no file path is configured; inline `KINVEST_SERVICE_TOKEN` is refused.
 
 Use the existing port 8100 with proxy-header rewriting disabled: this preserves
 Invest Desk's pinned URL while checking the socket peer and excluding nginx traffic.
-Only literal `127.0.0.1`/`::1` peers without any X-Forwarded-For, X-Real-IP or
+Only literal `127.0.0.1` peers without any X-Forwarded-For, X-Real-IP or
 Forwarded header can authenticate as the service principal. Header presence,
 including empty values, rejects it; a recognized service token never falls through
 to OAuth. The packaged Python entrypoint enforces `proxy_headers=False`; other

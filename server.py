@@ -42,6 +42,7 @@ from mcp.server.auth.routes import create_auth_routes
 from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+from mcp.types import ToolAnnotations
 from pydantic import AnyHttpUrl, AnyUrl
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
@@ -2370,8 +2371,8 @@ async def healthz(request: Request) -> Response:
     return Response("ok", media_type="text/plain")
 
 
-@mcp.tool()
-def get_service_health(mode: Literal["passive"] = "passive") -> dict[str, Any]:
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+def get_service_health(mode: str = "passive") -> dict[str, Any]:
     """Read cached service/source status without upstream calls or account reads.
 
     Never-observed and unconfigured sources are distinct from successfully empty

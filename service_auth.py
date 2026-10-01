@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 import re
 import secrets
@@ -56,6 +57,7 @@ def load_service_token(static_bearer: str) -> bytes | None:
     digest = hashlib.sha256(token).digest()
     if secrets.compare_digest(digest, hashlib.sha256(static_bearer.encode()).digest()):
         raise ServiceTokenConfigurationError("ServiceTokenCollision")
+    logging.getLogger("k-invest").info("service_token=loaded collision_guard=passed")
     return digest
 
 

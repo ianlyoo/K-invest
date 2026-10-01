@@ -162,9 +162,13 @@ def credential(tmp_path, monkeypatch, content=TOKEN, mode=0o600):
 
 
 @pytest.mark.parametrize('mode', [0o600, 0o400])
-def test_private_file_or_systemd_credential_load_retains_only_digest(tmp_path, monkeypatch, mode):
+def test_private_file_or_systemd_credential_load_retains_only_digest(tmp_path, monkeypatch, caplog, mode):
+    import logging
     credential(tmp_path, monkeypatch, TOKEN + '\n', mode)
-    assert load_service_token('synthetic-existing-static') == hashlib.sha256(TOKEN.encode()).digest()
+    with caplog.at_level(logging.INFO, logger='k-invest'):
+        assert load_service_token('synthetic-existing-static') == hashlib.sha256(TOKEN.encode()).digest()
+    assert 'service_token=loaded collision_guard=passed' in caplog.text
+    assert TOKEN not in caplog.text and str(tmp_path) not in caplog.text
 
 
 def test_even_a_digest_collision_refuses_configuration(tmp_path, monkeypatch):

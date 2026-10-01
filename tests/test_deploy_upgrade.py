@@ -57,7 +57,7 @@ def test_upgrade_adds_only_credential_path_metadata_and_rollback_restores_bytes(
     assert host.run('upgrade-activate').returncode == 0
     expected = (original.replace(str(host.release.parent / FROM), str(host.release)) +
         f'LoadCredential=invest-desk-token:{host.unit.parent}/toss-mcp/invest-desk-token\n'
-        'Environment=KINVEST_SERVICE_TOKEN_FILE=%d/invest-desk-token\n')
+        'Environment=KINVEST_SERVICE_TOKEN_FILE=/run/credentials/toss-mcp.service/invest-desk-token\n')
     assert host.dropin.read_text() == expected
     assert (host.backup / 'previous-dropin.conf').read_text() == original
     assert host.backup.stat().st_mode & 0o777 == 0o700
@@ -190,3 +190,27 @@ def test_upgrade_precheck_allows_only_verified_managed_dropin(monkeypatch, capsy
     assert 'fixture/override' not in output
     if other_override:
         assert f'"{other_override.removeprefix("quoted-")}"' in output
+
+
+@pytest.mark.parametrize('literal,ignored', [('%d/invest-desk-token', True),
+    ('/run/credentials/toss-mcp.service/invest-desk-token', False)])
+def test_exact_environment_assignment_on_systemd_249(tmp_path, literal, ignored):
+    import shutil
+    import subprocess
+    executable = shutil.which('systemd-analyze')
+    if not executable:
+        pytest.skip('systemd-analyze is not installed')
+    version = subprocess.check_output([executable, '--version'], text=True).splitlines()[0].split()[1]
+    if version != '249':
+        pytest.skip('Regression reproduces the deployed systemd 249 parser')
+    source = tmp_path / 'synthetic-token'
+    source.write_text('synthetic-private-service-token-with-32-characters\n')
+    source.chmod(0o600)
+    unit = tmp_path / 'service-token-regression.service'
+    unit.write_text('[Service]\nExecStart=/usr/bin/true\n'
+        f'LoadCredential=invest-desk-token:{source}\n'
+        f'Environment=KINVEST_SERVICE_TOKEN_FILE={literal}\n')
+    result = subprocess.run([executable, 'verify', str(unit)], capture_output=True, text=True)
+    warning = result.stdout + result.stderr
+    assert ('KINVEST_SERVICE_TOKEN_FILE' in warning and 'Invalid slot' in warning and 'ignoring' in warning) is ignored
+    assert result.returncode == 0  # An ignored assignment does not fail verification.

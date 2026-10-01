@@ -70,16 +70,24 @@ The candidate upgrade appends only:
 
 ```ini
 LoadCredential=invest-desk-token:/etc/toss-mcp/invest-desk-token
-Environment=KINVEST_SERVICE_TOKEN_FILE=%d/invest-desk-token
+Environment=KINVEST_SERVICE_TOKEN_FILE=/run/credentials/toss-mcp.service/invest-desk-token
 ```
 
-Systemd supplies a private runtime credential file readable by the service;
-`%d` selects its credential directory. No sandbox relaxation is needed. Precheck
+Systemd supplies a private runtime credential file readable by the service.
+Use the explicit path above: deployed systemd 249 ignores `%d` in Environment
+with `Invalid slot`, silently leaving service-token authentication disabled.
+No sandbox relaxation is needed. Precheck
 and activation verify only root source-file metadata (regular file, 0600).
 Validation scrubs service credential variables. Startup reads the configured
 file once, retains only its digest, and fails with fixed reason names on an
 unreadable/unsafe/invalid file or a legacy-bearer collision. The feature is disabled
 when no file path is configured; inline `KINVEST_SERVICE_TOKEN` is refused.
+Successful loading emits only `service_token=loaded collision_guard=passed`.
+Upgrade readiness requires the process environment's resolved path, then checks
+the exact eight-tool list, a forbidden passive-health call, and forwarded-header
+rejection before selecting success or rollback. All three restriction results
+are collected even if a catalog result fails; legacy passive health alone cannot
+pass an upgrade. Initial deployment and rollback keep their original store gate.
 
 Use the existing port 8100 with proxy-header rewriting disabled: this preserves
 Invest Desk's pinned URL while checking the socket peer and excluding nginx traffic.

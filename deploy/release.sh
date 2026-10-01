@@ -103,7 +103,7 @@ case "$mode" in
       sudo sed -e "s|^WorkingDirectory=$oldrelease$|WorkingDirectory=$release|" \
         -e "s|^ExecStart=$oldrelease/.venv/bin/python $oldrelease/server.py$|ExecStart=$release/.venv/bin/python $release/server.py|" \
         -e "\$aLoadCredential=invest-desk-token:$service_source" \
-        -e '$aEnvironment=KINVEST_SERVICE_TOKEN_FILE=%d/invest-desk-token' \
+        -e '$aEnvironment=KINVEST_SERVICE_TOKEN_FILE=/run/credentials/toss-mcp.service/invest-desk-token' \
         "$backup/previous-dropin.conf" | sudo bash -c 'set -euo pipefail; set -o noclobber; umask 077; cat > "$1"; chmod 0644 "$1"' -- "$backup/next-dropin.conf"
       # Prepare the rollback receipt before the atomic unit-file replacement.
       sudo sha256sum "$backup/next-dropin.conf" | sed "s|$backup/next-dropin.conf$|$dropin|" | \
@@ -130,8 +130,10 @@ ReadWritePaths=/var/lib/toss-mcp/oauth
 EOF
       sudo sha256sum "$dropin" | sudo bash -c 'set -euo pipefail; set -o noclobber; umask 077; cat > "$1"' -- "$backup/installed-dropin.sha256"
     fi
+    readiness_args=("$rev")
+    [[ "$mode" != upgrade-activate ]] || readiness_args+=(--service-token)
     if ! sudo systemctl daemon-reload || ! sudo systemctl restart toss-mcp.service ||
-       ! "$release/.venv/bin/python" "$release/deploy/readiness.py" "$rev"; then
+       ! "$release/.venv/bin/python" "$release/deploy/readiness.py" "${readiness_args[@]}"; then
       printf '%s\n' 'Startup failed: active plus authenticated-store-ok not reached; attempting guarded rollback' >&2
       if ! bash "$release/deploy/release.sh" revert "$rev"; then
         fail 'Startup failed and guarded rollback failed; stop for owner review'

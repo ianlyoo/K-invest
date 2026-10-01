@@ -25,6 +25,7 @@ case "$mode" in
     [[ "$actual_branch" == fix/oauth-durable-health ]] || fail 'Wrong branch'
     [[ -z "$checkout_status" ]] || fail 'Checkout must be clean'
     git diff --check
+    ssh hermes python3 - "$rev" < deploy/precheck.py
     # Exclusive release creation; any failed archive/upload stops activation.
     git archive --format=tar "$rev" | ssh hermes bash -c "'set -euo pipefail; set -o noclobber; umask 077; r=/home/ubuntu/toss-mcp-releases/$rev; test ! -e \"\$r\"; test ! -L \"\$r\"; install -d -m 0750 /home/ubuntu/toss-mcp-releases; mkdir -m 0750 \"\$r\"; cat > \"\$r/release.tar\"; tar -xf \"\$r/release.tar\" -C \"\$r\"'"
     ssh hermes bash -s -- activate "$rev" < deploy/release.sh
@@ -81,11 +82,17 @@ ExecStart=
 ExecStart=$release/.venv/bin/python $release/server.py
 Environment=KINVEST_OAUTH_STATE_DIR=$state
 UMask=0077
+ReadWritePaths=/var/lib/toss-mcp/oauth
 EOF
     sudo sha256sum "$dropin" | sudo bash -c 'set -euo pipefail; set -o noclobber; umask 077; cat > "$1"' -- "$backup/installed-dropin.sha256"
-    sudo systemctl daemon-reload
-    sudo systemctl restart toss-mcp.service
-    systemctl is-active --quiet toss-mcp.service
+    if ! sudo systemctl daemon-reload || ! sudo systemctl restart toss-mcp.service ||
+       ! "$release/.venv/bin/python" "$release/deploy/readiness.py" "$rev"; then
+      printf '%s\n' 'Startup failed: active plus authenticated-store-ok not reached; attempting guarded rollback' >&2
+      if ! bash "$release/deploy/release.sh" revert "$rev"; then
+        fail 'Startup failed and guarded rollback failed; stop for owner review'
+      fi
+      fail 'Startup validation failed; guarded rollback completed'
+    fi
     systemctl show toss-mcp.service --property=ActiveState,SubState,ExecMainStartTimestamp,NRestarts
     ;;
   revert)

@@ -21,6 +21,8 @@ def synthetic_host(tmp_path, fail_stage=None):
     release = home / "toss-mcp-releases" / REV
     release.mkdir(parents=True)
     (release / "requirements-validated.txt").write_text("fixture-only\n")
+    (release / "deploy").mkdir()
+    (release / "deploy/release.sh").write_text(text)
     unit = etc / "toss-mcp.service"
     unit.parent.mkdir(parents=True)
     unit.write_text("fixture-original-unit\n")
@@ -42,7 +44,7 @@ def synthetic_host(tmp_path, fail_stage=None):
 cat > "$3/bin/python" <<'EOF'
 #!/bin/bash
 set -euo pipefail
-if [[ "$2" == "$FIXTURE_FAIL" ]]; then exit 23; fi
+if [[ "$2" == "$FIXTURE_FAIL" || "$1" == */readiness.py && "$FIXTURE_FAIL" == readiness ]]; then exit 23; fi
 exit 0
 EOF
 cat > "$3/bin/ruff" <<'EOF'
@@ -133,3 +135,30 @@ esac
     git.chmod(0o755)
     assert host.run("deploy").returncode == 23
     assert not host.log.exists()
+
+
+def test_dropin_adds_only_the_state_directory_sandbox_exception(tmp_path):
+    host = synthetic_host(tmp_path)
+    assert host.run().returncode == 0
+    dropin = host.dropin.read_text()
+    state = host.backup.parent / 'oauth'
+    assert f'ReadWritePaths={state}\n' in dropin
+    assert dropin.count('ReadWritePaths=') == 1
+    assert f'Environment=KINVEST_OAUTH_STATE_DIR={state}\n' in dropin
+    assert 'UMask=0077\n' in dropin
+    for field in ('ProtectSystem=', 'ProtectHome=', 'ReadOnlyPaths=', 'InaccessiblePaths=', 'PrivateTmp='):
+        assert field not in dropin
+
+
+def test_failed_authenticated_readiness_automatically_uses_guarded_rollback(tmp_path):
+    host = synthetic_host(tmp_path, 'readiness')
+    result = host.run()
+    assert result.returncode != 0
+    assert 'active plus authenticated-store-ok not reached' in result.stderr
+    assert 'guarded rollback completed' in result.stderr
+    assert not host.dropin.exists()
+    assert (host.backup / 'removed-dropin.conf').exists()
+    assert (host.backup / 'installed-dropin.sha256').exists()
+    assert host.unit.read_text() == 'fixture-original-unit\n'
+    assert host.log.read_text().count('restart toss-mcp.service') == 2
+    assert host.release.exists()

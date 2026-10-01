@@ -45,14 +45,23 @@ from pydantic import AnyHttpUrl, AnyUrl
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
-from binance_futures_api import BinanceAPIError, BinanceFuturesClient
+import portfolio_engine
+from auth_observability import AuthObservability
+from binance_futures_api import BinanceFuturesClient
+from error_taxonomy import classify_error
+from health_status import HealthStatus
+from journal_metadata import annotate_rows, source_metadata
 from kinvest_common import NotConfiguredError, apply_env_file
-from kis_api import KISAPIError, KISClient
+from kis_accounts import KISAccountRegistry
+from kis_api import KISClient
 from margin_ta_runner import MarginTARunner, _summarize_analysis
 from oauth_provider import DualTokenVerifier, PersonalOAuthProvider
+from oauth_store import AuthStoreUnavailable
+from portfolio_sources import PortfolioCollector, Providers, kis_source
+from portfolio_store import NavStore
 from sec_api import SECClient
 from toss_accounts import TossAccountRegistry
-from toss_api import TossAPIError, TossClient
+from toss_api import TossClient
 from yfinance_api import YFinanceClient
 from yfinance_consensus import risk_free_rate
 
@@ -64,7 +73,22 @@ logging.basicConfig(
     stream=sys.stderr,
 )
 logger = logging.getLogger("k-invest")
-SERVER_VERSION = "2.2.0"
+class _SafeAccessFilter(logging.Filter):
+    def filter(self, record):
+        # Uvicorn's AccessFormatter requires its original five arguments; suppress
+        # the record rather than rewriting arguments and risking a logging traceback.
+        return False
+
+
+logging.getLogger("uvicorn.access").addFilter(_SafeAccessFilter())
+_health_status = HealthStatus()
+
+# httpx logs every request line at INFO, and broker account endpoints carry the
+# account number in the query string (CANO=...), so root-level INFO would write
+# account identifiers into journald on every balance call.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+SERVER_VERSION = "2.3.0"
 
 # ── Config ──────────────────────────────────────────────
 
@@ -116,7 +140,7 @@ _OAUTH_CLIENT_SECRET = os.environ.get("MCP_OAUTH_CLIENT_SECRET", "").strip()
 _OAUTH_ENABLED = bool(MCP_AUTH_TOKEN and _OAUTH_CLIENT_ID and _OAUTH_CLIENT_SECRET)
 
 _oauth_provider = (
-    PersonalOAuthProvider(_OAUTH_CLIENT_ID, _OAUTH_CLIENT_SECRET) if _OAUTH_ENABLED else None
+    PersonalOAuthProvider(_OAUTH_CLIENT_ID, _OAUTH_CLIENT_SECRET, resource_url=_MCP_PUBLIC_URL) if _OAUTH_ENABLED else None
 )
 if MCP_AUTH_TOKEN and not _OAUTH_ENABLED:
     logger.info(
@@ -135,7 +159,14 @@ def _resolve_token_verifier() -> TokenVerifier | None:
 
 # ── MCP Server ──────────────────────────────────────────
 
-mcp = FastMCP(
+class ObservedFastMCP(FastMCP):
+    def streamable_http_app(self):
+        app = super().streamable_http_app()
+        app.add_middleware(AuthObservability)
+        return app
+
+
+mcp = ObservedFastMCP(
     name="K-invest",
     instructions=(
         "Read-only stock analysis MCP server. "
@@ -202,6 +233,8 @@ async def _oauth_authorize(request: Request) -> Response:
             resource=qp.get("resource"),
         )
         code = await _oauth_provider.authorize(client, params)
+    except AuthStoreUnavailable:
+        raise
     except Exception as e:  # noqa: BLE001 — any bad input becomes a 400, never a 500
         logger.warning("OAuth /authorize rejected a request: %s", type(e).__name__)
         return Response("invalid authorization request", status_code=400)
@@ -239,11 +272,13 @@ if _OAUTH_ENABLED and _oauth_provider is not None:
 
 _toss_client: TossClient | None = None
 _toss_accounts: TossAccountRegistry | None = None
-_kis_client: KISClient | None = None
+_kis_accounts: KISAccountRegistry | None = None
 _sec_client: SECClient | None = None
 _yf_client: YFinanceClient | None = None
 _mt_runner: MarginTARunner | None = None
 _binance_client: BinanceFuturesClient | None = None
+_collector: PortfolioCollector | None = None
+_nav_store: NavStore | None = None
 
 
 def _get_toss_registry() -> TossAccountRegistry:
@@ -276,11 +311,47 @@ def _for_toss_accounts(account: str, operation: Any) -> Any:
     return {"accounts": results}
 
 
-def _get_kis() -> KISClient:
-    global _kis_client
-    if _kis_client is None:
-        _kis_client = KISClient()
-    return _kis_client
+def _get_kis_registry() -> KISAccountRegistry:
+    global _kis_accounts
+    if _kis_accounts is None:
+        _kis_accounts = KISAccountRegistry.from_sources()
+    return _kis_accounts
+
+
+def _get_kis(account: str = "") -> KISClient:
+    """Client for one configured KIS account (default: the `primary` account)."""
+    return _get_kis_registry().client_for(account)
+
+
+#: Stands in for the overseas half of a KIS response on a pension account —
+#: 연금저축(22)/퇴직연금(29) accounts cannot hold overseas-listed securities, so the
+#: call is skipped rather than reported as an empty portfolio.
+_OVERSEAS_UNSUPPORTED: dict[str, Any] = {
+    "supported": False,
+    "code": "OVERSEAS_NOT_SUPPORTED",
+    "message": "연금저축/퇴직연금 계좌는 해외 상장 종목을 보유할 수 없습니다",
+}
+
+
+def _kis_overseas_balance(client: KISClient) -> dict[str, Any]:
+    if not client.supports_overseas:
+        return dict(_OVERSEAS_UNSUPPORTED)
+    return client.get_overseas_balance()
+
+
+def _for_kis_accounts(account: str, operation: Any) -> Any:
+    """Run `operation` against one KIS account, or every one when account="all"."""
+    normalized = (account or "").strip().lower()
+    registry = _get_kis_registry()
+    if normalized != "all":
+        return operation(registry.client_for(normalized))
+    results: list[dict[str, Any]] = []
+    for label in registry.account_labels():
+        try:
+            results.append({"account": label, "data": operation(registry.client_for(label)), "error": None})
+        except Exception as e:
+            results.append({"account": label, "data": None, "error": _format_error(e).get("error")})
+    return {"accounts": results}
 
 
 def _get_sec() -> SECClient:
@@ -309,6 +380,29 @@ def _get_binance() -> BinanceFuturesClient:
     if _binance_client is None:
         _binance_client = BinanceFuturesClient()
     return _binance_client
+
+
+def _get_collector() -> PortfolioCollector:
+    """Portfolio collector singleton — it also carries rolling source health."""
+    global _collector
+    if _collector is None:
+        _collector = PortfolioCollector(
+            Providers(
+                toss_labels=lambda: _get_toss_registry().account_labels(),
+                toss_client=_get_toss,
+                kis_accounts=lambda: _get_kis_registry().accounts(),
+                kis_client=_get_kis,
+                error_formatter=_format_error,
+            )
+        )
+    return _collector
+
+
+def _get_nav_store() -> NavStore:
+    global _nav_store
+    if _nav_store is None:
+        _nav_store = NavStore()
+    return _nav_store
 
 
 def _ok(data: Any, provider: str = "", **meta: Any) -> dict[str, Any]:
@@ -345,17 +439,15 @@ def _fail(
 
 
 def _format_error(e: Exception) -> dict[str, Any]:
-    if isinstance(e, NotConfiguredError):
-        return _fail(
-            f"{e.provider.upper()}_NOT_CONFIGURED", str(e), provider=e.provider, retryable=False
-        )
-    if isinstance(e, TossAPIError):
-        return _fail("TOSS_API_ERROR", str(e), provider="toss", upstream_status=e.status, details=e.body)
-    if isinstance(e, KISAPIError):
-        return _fail("KIS_API_ERROR", str(e), provider="kis", upstream_status=e.status, details=e.body)
-    if isinstance(e, BinanceAPIError):
-        return _fail("BINANCE_API_ERROR", str(e), provider="binance", upstream_status=e.status, details=e.body)
-    return _fail(type(e).__name__.upper(), str(e), retryable=False)
+    error = classify_error(e)
+    provider = error.get("provider")
+    if provider:
+        _health_status.record(provider, status=error["kind"], error_code=error["kind"])
+    logger.warning("provider failure: provider=%s kind=%s", provider, error["kind"])
+    result = _fail(error["code"], error["message"], provider=provider or "",
+                   upstream_status=error["upstream_status"], retryable=error["retryable"])
+    result["error"]["kind"] = error["kind"]
+    return result
 
 
 def _to_float(value: Any) -> float | None:
@@ -384,6 +476,119 @@ def _amount_from(value: Any, preferred_currency: str = "") -> tuple[float | None
             if num is not None:
                 return num, cur
     return _to_float(value), preferred_currency.upper() or None
+
+
+# ── Portfolio engine helpers ────────────────────────────
+
+#: Stated once and attached to every portfolio response so the accounting basis
+#: is never ambiguous to a caller.
+_VALUATION_METHODOLOGY = {
+    "base_currency": "KRW",
+    "cost_basis": "moving average (이동평균법); buy fees/taxes capitalized into cost",
+    "fx_valuation": "current spot rate (yfinance <CUR>KRW=X), applied to native values",
+    "fx_realized": "broker-recorded trade rate when available, else current spot",
+    "fx_decomposition": (
+        "realized_pnl_krw = realized_pnl x exit rate + realized_fx_krw, where "
+        "realized_fx_krw = cost_in_currency x exit rate - cost_in_krw. Requires a "
+        "broker-recorded rate on both the buy and the sale; otherwise "
+        "realized_fx_krw is null (Toss does not report trade FX rates)."
+    ),
+    "settlement": "positions and cash are trade-date based as the broker reports them",
+    "position_grouping": "(symbol, currency) — same ticker across accounts is one position",
+}
+
+_RETURN_METHODOLOGY = {
+    "simple_return": "(end NAV - start NAV - net external flows) / (start NAV + net inflows)",
+    "twr": "chained sub-period returns from stored daily NAV snapshots, flow-adjusted",
+    "xirr": "money-weighted annualized return over dated flows plus terminal NAV",
+    "risk_stats": "daily NAV changes annualized at 252 trading days",
+}
+
+_LEDGER_LIMITATIONS = [
+    "Deposits, withdrawals, and cash transfers are not exposed by the Toss or KIS "
+    "open APIs, so net external flow is 0 and TWR/XIRR treat trades as internal "
+    "reallocation only.",
+    "Dividends, interest, and withholding tax are not available per account from "
+    "either provider; DIVIDEND/INTEREST/TAX entries stay empty.",
+    "Corporate actions (split, merger, spinoff, ticker change) have no API source; "
+    "a split that is not reflected in broker-reported quantities will distort "
+    "ledger-derived cost basis until the broker restates it.",
+    "KIS domestic fills report one estimated total cost (제비용) rather than "
+    "commission and tax separately, so it is recorded entirely as `fee`.",
+    "Toss serves order history from its own retention window; sales of positions "
+    "bought before it appear under `incomplete_cost_basis`.",
+]
+
+
+def _resolve_dates(start_date: str, end_date: str, default_days: int) -> tuple[str, str]:
+    """Normalize an optional ISO date range, defaulting the window backwards."""
+    end = (end_date or "").strip() or datetime.now().strftime("%Y-%m-%d")
+    start = (start_date or "").strip() or (
+        datetime.strptime(end, "%Y-%m-%d") - timedelta(days=default_days)
+    ).strftime("%Y-%m-%d")
+    for label, value in (("start_date", start), ("end_date", end)):
+        try:
+            datetime.strptime(value, "%Y-%m-%d")
+        except ValueError as e:
+            raise ValueError(f"{label} must be ISO YYYY-MM-DD, got {value!r}") from e
+    if start > end:
+        raise ValueError(f"start_date {start} is after end_date {end}")
+    return start, end
+
+
+def _kis_source_labels() -> list[str]:
+    """Every KIS portfolio source name, e.g. kis:domestic, kis:pension:domestic."""
+    try:
+        accounts = _get_kis_registry().accounts()
+    except Exception:  # noqa: BLE001 — unconfigured KIS still resolves to its default sources
+        return ["kis:domestic", "kis:overseas"]
+    labels: list[str] = []
+    for account in accounts:
+        scopes = ["domestic", "overseas"] if account.supports_overseas else ["domestic"]
+        labels.extend(kis_source(account.label, scope) for scope in scopes)
+    return labels
+
+
+def _resolve_accounts(account: str) -> list[str] | None:
+    """Map an `account` filter to explicit account labels, or None for everything.
+
+    Accepts "all", a provider ("toss", "kis"), a full source name ("kis:domestic",
+    "kis:pension:domestic", "toss:primary"), a KIS account label ("kis:pension"),
+    or a bare Toss label ("primary").
+    """
+    wanted = (account or "all").strip().lower()
+    if wanted in ("", "all"):
+        return None
+    if wanted == "kis":
+        return _kis_source_labels()
+    if wanted == "toss":
+        return [f"toss:{label}" for label in _get_toss_registry().account_labels()]
+    if wanted.startswith("kis:"):
+        kis_sources = _kis_source_labels()
+        if wanted in kis_sources:
+            return [wanted]
+        # A KIS account label on its own ("kis:pension") means all of its scopes.
+        scoped = [name for name in kis_sources if name.startswith(f"{wanted}:")]
+        return scoped or [wanted]
+    if wanted.startswith("toss:"):
+        return [wanted]
+    return [f"toss:{wanted}"]
+
+
+def _risk_free_decimal() -> float:
+    """10Y Treasury yield as a decimal for Sharpe/Sortino; 0.0 when unavailable."""
+    try:
+        data = risk_free_rate(yf.Ticker("^TNX"))
+        return float(data.get("ten_year_treasury_yield_decimal") or 0.0)
+    except Exception:  # noqa: BLE001 — risk stats degrade to excess-over-zero
+        return 0.0
+
+
+def _count_by(items: Any) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in items:
+        counts[item.account] = counts.get(item.account, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def _walk_position_items(payload: Any) -> list[dict[str, Any]]:
@@ -586,7 +791,8 @@ def get_quote(symbol: str) -> dict[str, Any]:
     """
     try:
         data = _get_toss().get_prices(symbol)
-        return _ok(data)
+        _health_status.record("toss:market_data", status="ok" if data else "ok_empty", count=len(data), complete=True)
+        return _ok(data, provider="toss")
     except Exception as e:
         return _format_error(e)
 
@@ -807,47 +1013,105 @@ def get_toss_trade_history(limit: int = 50, account: str = "primary") -> dict[st
         Structured JSON envelope with recent filled orders.
     """
     try:
-        data = _for_toss_accounts(account, lambda client: client.get_trade_history(limit=limit))
-        return _ok(data, provider="toss", account=account)
+        registry = _get_toss_registry()
+        labels = registry.account_labels() if account == "all" else [account or "primary"]
+        results, sources = [], []
+        for label in labels:
+            source = f"toss:{label}:history"
+            try:
+                client = registry.client_for(label)
+                rows = client.get_trade_history(limit=limit)
+                annotated = annotate_rows(rows, "toss", getattr(client, "journal_account_key", f"toss:{label}"))
+                truncated = getattr(rows, "truncated", len(rows) >= limit)
+                metadata = source_metadata(source, len(rows), complete=not truncated, truncated=truncated,
+                    reason=getattr(rows, "truncation_reason", "row_limit" if truncated else None))
+                results.append({"account": label, "data": annotated, "error": None})
+            except Exception as exc:
+                error = _format_error(exc)["error"]
+                metadata = source_metadata(source, None, complete=False, error_code=error["kind"])
+                results.append({"account": label, "data": None, "error": error})
+            sources.append(metadata)
+            _health_status.record(source, status=metadata["status"], count=metadata["result_count"],
+                complete=metadata["complete"], error_code=metadata["error_code"], truncated=metadata["truncated"])
+        data = {"accounts": results} if account == "all" else results[0]["data"]
+        if account != "all" and results[0]["error"]:
+            return {"ok": False, "data": None, "error": results[0]["error"], "meta": {"sources": sources, "complete": False}}
+        return _ok(data, provider="toss", account=account, sources=sources,
+                   complete=bool(sources) and all(x["complete"] is True for x in sources))
     except Exception as e:
         return _format_error(e)
 
 
 # ════════════════════════════════════════════════════════════════
-# KIS (Korea Investment Securities) Tools (6)
+# KIS (Korea Investment Securities) Tools (7)
 # ════════════════════════════════════════════════════════════════
 
 
 @mcp.tool()
-def get_kis_domestic_balance() -> dict[str, Any]:
+def get_kis_accounts() -> dict[str, Any]:
+    """List configured KIS accounts without exposing account numbers or keys.
+
+    Each entry carries the label to pass as `account` on the other KIS tools, its
+    계좌상품코드, and `kind`: "pension" for a 연금저축(22)/퇴직연금(29) account,
+    which holds domestic products only, or "general" otherwise.
+
+    Returns:
+        Structured JSON envelope with account labels and their metadata.
+    """
+    try:
+        registry = _get_kis_registry()
+        return _ok(
+            {
+                "accounts": registry.accounts_metadata(),
+                "default": registry.default_label(),
+                "count": len(registry.account_labels()),
+            },
+            provider="kis",
+        )
+    except Exception as e:
+        return _format_error(e)
+
+
+@mcp.tool()
+def get_kis_domestic_balance(account: str = "") -> dict[str, Any]:
     """Get Korean domestic stock balance from KIS (READ-ONLY).
 
     Shows all Korean stocks held with quantity, average price, current price,
     and P&L. Also includes cash balance.
 
+    Args:
+        account: Account label from get_kis_accounts() — a 연금저축 account is
+            queried the same way. Empty uses the default account; "all" queries
+            every configured account.
+
     Returns:
         Structured JSON envelope with domestic balance data.
     """
     try:
-        data = _get_kis().get_domestic_balance()
-        return _ok(data)
+        data = _for_kis_accounts(account, lambda client: client.get_domestic_balance())
+        return _ok(data, account=account or _get_kis_registry().default_label())
     except Exception as e:
         return _format_error(e)
 
 
 @mcp.tool()
-def get_kis_overseas_balance() -> dict[str, Any]:
+def get_kis_overseas_balance(account: str = "") -> dict[str, Any]:
     """Get overseas (US/JP/HK) stock balance from KIS (READ-ONLY).
 
     Shows all overseas stocks held including US, Japan, Hong Kong, China.
-    Includes cash balance per currency.
+    Includes cash balance per currency. Pension accounts (연금저축/퇴직연금) cannot
+    hold overseas securities and report OVERSEAS_NOT_SUPPORTED instead.
+
+    Args:
+        account: Account label from get_kis_accounts(). Empty uses the default
+            account; "all" queries every configured account.
 
     Returns:
         Structured JSON envelope with overseas balance data.
     """
     try:
-        data = _get_kis().get_overseas_balance()
-        return _ok(data)
+        data = _for_kis_accounts(account, _kis_overseas_balance)
+        return _ok(data, account=account or _get_kis_registry().default_label())
     except Exception as e:
         return _format_error(e)
 
@@ -868,7 +1132,7 @@ def get_kis_domestic_quote(symbol: str) -> dict[str, Any]:
     except Exception as e:
         try:
             fallback = _get_toss().get_prices(symbol)
-            return _ok({"primary_provider": "kis", "primary_error": str(e)[:200], "fallback_provider": "toss", "fallback_data": fallback}, provider="kis_fallback_toss")
+            return _ok({"primary_provider": "kis", "primary_error": classify_error(e)["message"], "fallback_provider": "toss", "fallback_data": fallback}, provider="kis_fallback_toss")
         except Exception:
             return _format_error(e)
 
@@ -893,13 +1157,13 @@ def get_kis_overseas_quote(symbol: str, exchange: Literal["NASDAQ", "NYSE", "AME
     except Exception as e:
         try:
             fallback = _get_toss().get_prices(symbol)
-            return _ok({"primary_provider": "kis", "primary_error": str(e)[:200], "fallback_provider": "toss", "fallback_data": fallback}, provider="kis_fallback_toss")
+            return _ok({"primary_provider": "kis", "primary_error": classify_error(e)["message"], "fallback_provider": "toss", "fallback_data": fallback}, provider="kis_fallback_toss")
         except Exception:
             return _format_error(e)
 
 
 @mcp.tool()
-def get_kis_trade_history(start_date: str = "", end_date: str = "") -> dict[str, Any]:
+def get_kis_trade_history(start_date: str = "", end_date: str = "", account: str = "") -> dict[str, Any]:
     """Get trade history (execution records) from KIS (READ-ONLY).
 
     Fetches both domestic and overseas trade history.
@@ -907,6 +1171,8 @@ def get_kis_trade_history(start_date: str = "", end_date: str = "") -> dict[str,
     Args:
         start_date: Start date in YYYYMMDD format (default: 30 days ago)
         end_date: End date in YYYYMMDD format (default: today)
+        account: Account label from get_kis_accounts(). Empty uses the default
+            account; "all" queries every configured account.
 
     Returns:
         Structured JSON envelope with domestic and overseas trade records.
@@ -916,27 +1182,83 @@ def get_kis_trade_history(start_date: str = "", end_date: str = "") -> dict[str,
             end_date = datetime.now().strftime("%Y%m%d")
         if not start_date:
             start_date = (datetime.now() - timedelta(days=30)).strftime("%Y%m%d")
-
-        domestic = _get_kis().get_domestic_trade_history(start_date, end_date)
-        overseas = _get_kis().get_overseas_trade_history(start_date, end_date)
-        return _ok({"domestic": domestic, "overseas": overseas}, provider="kis")
+        start, end = datetime.strptime(start_date, "%Y%m%d"), datetime.strptime(end_date, "%Y%m%d")
+        if start > end:
+            raise ValueError("Date range reversed")
+        registry = _get_kis_registry()
+        labels = registry.account_labels() if account == "all" else [account or registry.default_label()]
+        results, sources = [], []
+        for label in labels:
+            try:
+                client = registry.client_for(label)
+            except Exception as exc:
+                error = _format_error(exc)["error"]
+                for market in ["domestic", "overseas"]:
+                    sources.append(source_metadata(f"kis:{label}:{market}:history", None, complete=False,
+                        error_code=error["kind"], start=start_date, end=end_date))
+                results.append({"account": label, "data": None, "error": error})
+                continue
+            payload = {}
+            for market, method in [("domestic", client.get_domestic_trade_history), ("overseas", client.get_overseas_trade_history)]:
+                source = f"kis:{label}:{market}:history"
+                if market == "overseas" and not client.supports_overseas:
+                    payload[market] = dict(_OVERSEAS_UNSUPPORTED)
+                    sources.append(source_metadata(source, None, complete=None, supported=False, start=start_date, end=end_date))
+                    continue
+                try:
+                    value = dict(method(start_date, end_date))
+                    value["trades"] = annotate_rows(value.get("trades", []), "kis",
+                        getattr(client, "journal_account_key", f"kis:{label}"), "KR" if market == "domestic" else "")
+                    truncated = bool(value.get("truncated"))
+                    metadata = source_metadata(source, len(value["trades"]), complete=not truncated, truncated=truncated,
+                        start=start_date, end=end_date, reason="page_limit" if truncated else None)
+                    value["source_metadata"] = metadata
+                    payload[market] = value
+                except Exception as exc:
+                    error = _format_error(exc)["error"]
+                    metadata = source_metadata(source, None, complete=False, error_code=error["kind"], start=start_date, end=end_date)
+                    payload[market] = {"trades": None, "error": error, "source_metadata": metadata}
+                sources.append(metadata)
+                _health_status.record(source, status=metadata["status"], count=metadata["result_count"],
+                    complete=metadata["complete"], error_code=metadata["error_code"], truncated=metadata["truncated"])
+            results.append({"account": label, "data": payload, "error": None})
+        data = {"accounts": results} if account == "all" else results[0]["data"]
+        applicable = [x for x in sources if x["supported"]]
+        return _ok(data, provider="kis", account=account or registry.default_label(), sources=sources,
+                   complete=bool(applicable) and all(x["complete"] is True for x in applicable))
     except Exception as e:
         return _format_error(e)
 
 
 @mcp.tool()
-def get_kis_cash_balance() -> dict[str, Any]:
+def get_kis_cash_balance(account: str = "") -> dict[str, Any]:
     """Get available cash from KIS domestic and overseas accounts (READ-ONLY).
 
     Returns KRW and USD cash available for trading.
+
+    Args:
+        account: Account label from get_kis_accounts(). Empty uses the default
+            account; "all" queries every configured account.
 
     Returns:
         Structured JSON envelope with domestic and overseas cash balances.
     """
     try:
-        domestic_cash = _get_kis().get_domestic_orderable_cash()
-        overseas_cash = _get_kis().get_overseas_orderable_cash()
-        return _ok({"krw": domestic_cash, "usd": overseas_cash}, provider="kis")
+        def _cash(client: KISClient) -> dict[str, Any]:
+            return {
+                "krw": client.get_domestic_orderable_cash(),
+                "usd": (
+                    client.get_overseas_orderable_cash()
+                    if client.supports_overseas
+                    else _OVERSEAS_UNSUPPORTED
+                ),
+            }
+
+        return _ok(
+            _for_kis_accounts(account, _cash),
+            provider="kis",
+            account=account or _get_kis_registry().default_label(),
+        )
     except Exception as e:
         return _format_error(e)
 
@@ -1299,10 +1621,33 @@ def get_invest_mcp_help(topic: str = "overview") -> dict[str, Any]:
 
 ## 한국투자증권(KIS)
 
-- `get_kis_domestic_balance()` — 국내 주식 잔고
-- `get_kis_overseas_balance()` — 해외 주식 잔고(미국/일본 등)
-- `get_kis_cash_balance()` — KRW/USD 현금
-- `get_kis_trade_history(start_date="YYYYMMDD", end_date="YYYYMMDD")` — 체결내역
+계좌가 여러 개면(일반 종합계좌 + 연금저축 등) 모든 KIS 도구의 `account`에 label을 넘긴다.
+빈 값은 기본 계좌, `"all"`은 전 계좌 조회.
+
+- `get_kis_accounts()` — 설정된 KIS 계좌 label과 `kind`(`general`/`pension`) 목록. 계좌번호·키는 반환하지 않음
+- `get_kis_domestic_balance(account="")` — 국내 주식 잔고. 연금저축 계좌도 동일 조회
+- `get_kis_overseas_balance(account="")` — 해외 주식 잔고. 미국/일본/홍콩/중국 전 시장을 합산하고 각 행에 `market`/`exchange`/`currency` 포함
+- `get_kis_cash_balance(account="")` — KRW/USD 현금
+- `get_kis_trade_history(start_date="YYYYMMDD", end_date="YYYYMMDD", account="")` — 체결내역(국내+해외). 3개월 경계를 넘는 기간도 자동 분할 조회
+
+연금저축(계좌상품코드 22)·퇴직연금(29) 계좌는 해외 상장 종목을 보유할 수 없으므로
+해외 조회는 호출하지 않고 `OVERSEAS_NOT_SUPPORTED`로 응답한다.
+
+## 통합 포트폴리오 — 여러 브로커 합산
+
+브로커별로 나눠 묻지 말고 이 도구들을 쓰면 계산까지 서버가 결정적으로 처리한다.
+
+- `get_consolidated_holdings(detail_level="summary")` — 토스 전 계좌 + KIS 전 계좌(국내/해외)를 종목별 합산. 수량가중 평단, 매입원가, 평가액, 미실현손익, 보유 계좌 목록, KRW 환산
+- `get_portfolio_summary()` — 총자산/주식/현금/원가/미실현손익 + YTD 실현손익·배당·수수료·세금, 통화별·시장별·계좌별 breakdown. 호출 시 당일 NAV 스냅샷도 저장
+- `get_all_transactions(start_date, end_date, account="all", symbol="")` — 토스/KIS 거래를 동일 schema로 정규화한 통합 원장 (ISO YYYY-MM-DD)
+- `get_realized_pnl(period="YTD", account="all", symbol="")` — 이동평균 원가 기준 종목별 실현손익. `incomplete_cost_basis`는 원가 과소계상 경고
+- `get_portfolio_performance(period="YTD")` — simple return / TWR / XIRR, 실현·미실현·배당·수수료·세금·FX 분해, MDD·변동성·Sharpe·Sortino
+- `get_portfolio_history(period="3M")` — 저장된 일별 NAV 스냅샷 시계열
+- `snapshot_portfolio_nav()` — 당일 NAV 스냅샷 저장 (cron/systemd timer용)
+- `get_account_health(detail_level="summary")` — 계좌별 status, last_success_at, 오류, data_freshness
+
+계산 기준: 기준통화 KRW, 원가는 이동평균법(매수 수수료·세금 원가 산입), 평가 환율은 현재 spot,
+실현손익 환율은 브로커가 보고한 거래 시점 환율. 각 응답의 `methodology`/`limitations` 참고.
 """,
         "financials": """
 # 재무/내부자 데이터 도구
@@ -1365,7 +1710,17 @@ def get_invest_mcp_help(topic: str = "overview") -> dict[str, Any]:
 ## 계좌
 
 - “내 KIS 국내/해외 보유종목 보여줘.” → `get_kis_domestic_balance()` + `get_kis_overseas_balance()`
+- “KIS 연금계좌 잔고 보여줘.” → `get_kis_accounts()`로 label 확인 후 `get_kis_domestic_balance(account="pension")`
 - “토스 두 계좌 보유종목과 최근 체결내역 보여줘.” → `get_toss_holdings(account="all")` + `get_toss_trade_history(account="all")`
+
+## 통합 포트폴리오
+
+- “전체 자산이 얼마야?” → `get_portfolio_summary()`
+- “모든 계좌 합쳐서 종목별로 얼마 들고 있어?” → `get_consolidated_holdings()`
+- “올해 실현손익과 수수료 얼마야?” → `get_realized_pnl(period="YTD")`
+- “올해 수익률 TWR/XIRR로 알려줘.” → `get_portfolio_performance(period="YTD")`
+- “6월 거래내역 전부 보여줘.” → `get_all_transactions("2026-06-01", "2026-06-30")`
+- “계좌 연결에 문제 없어?” → `get_account_health(detail_level="full")`
 
 ## 재무/내부자
 
@@ -1404,7 +1759,7 @@ def compare_quotes(symbol: str, exchange: Literal["NASDAQ", "NYSE", "AMEX", "TKS
             kis_quote = _get_kis().get_domestic_quote(symbol) if symbol.isdigit() else _get_kis().get_overseas_quote(symbol, exchange=exchange)
         except Exception as e:
             kis_quote = None
-            kis_error = str(e)[:200]
+            kis_error = classify_error(e)["message"]
         return _ok({
             "symbol": symbol.upper(),
             "quotes": [
@@ -1439,6 +1794,443 @@ def get_stock_snapshot(symbol: str, market: Literal["auto", "us", "kr"] = "auto"
         return _format_error(e)
 
 
+# ════════════════════════════════════════════════════════════════
+# Portfolio Engine — consolidated ledger, holdings, and performance (8)
+# ════════════════════════════════════════════════════════════════
+
+
+@mcp.tool()
+def get_all_transactions(
+    start_date: str = "",
+    end_date: str = "",
+    account: str = "all",
+    symbol: str = "",
+    detail_level: Literal["summary", "full"] = "full",
+) -> dict[str, Any]:
+    """Unified transaction ledger across every Toss and KIS account (READ-ONLY).
+
+    Normalizes Toss orders and KIS domestic/overseas trade history into one schema:
+    each entry carries tx_type, trade_date, settle_date, symbol, market, currency,
+    quantity, price, gross_amount, fee, tax, and a signed net_amount (negative when
+    cash leaves the account).
+
+    The schema also covers DEPOSIT, WITHDRAWAL, DIVIDEND, INTEREST, FEE, TAX, FX,
+    TRANSFER, SPLIT, SPINOFF, MERGER, and TICKER_CHANGE, but neither the Toss nor
+    the KIS open API exposes those records, so only BUY/SELL are populated today —
+    see `limitations` in the response.
+
+    Args:
+        start_date: ISO YYYY-MM-DD (default: 90 days ago)
+        end_date: ISO YYYY-MM-DD (default: today)
+        account: "all", "toss", "kis", or a specific label ("toss:primary",
+            "kis:domestic", "kis:overseas", "kis:pension:domestic")
+        symbol: optional symbol filter
+        detail_level: "summary" returns aggregates only, "full" includes entries
+
+    Returns:
+        Structured JSON envelope with the normalized ledger.
+    """
+    try:
+        start, end = _resolve_dates(start_date, end_date, default_days=90)
+        accounts = _resolve_accounts(account)
+        collection = _get_collector().collect_transactions(start, end, accounts, symbol or None)
+        transactions = collection.transactions
+        for source, metadata in collection.source_metadata.items():
+            _health_status.record(source, status=metadata["status"], count=metadata["result_count"],
+                complete=metadata["complete"], error_code=metadata["error_code"], truncated=metadata["truncated"])
+        by_type: dict[str, int] = {}
+        by_account: dict[str, int] = {}
+        for tx in transactions:
+            by_type[tx.tx_type.value] = by_type.get(tx.tx_type.value, 0) + 1
+            by_account[tx.account] = by_account.get(tx.account, 0) + 1
+        data: dict[str, Any] = {
+            "period": {"start": start, "end": end},
+            "account_filter": account,
+            "transaction_count": len(transactions),
+            "count_by_type": dict(sorted(by_type.items())),
+            "count_by_account": dict(sorted(by_account.items())),
+            "sources_ok": collection.ok_sources,
+            "sources_failed": collection.failed_sources,
+            "truncated_sources": collection.truncated_sources,
+            "complete": bool(collection.health) and not collection.truncated_sources and not collection.failed_sources,
+            "health": collection.health,
+            "source_metadata": collection.source_metadata,
+            "limitations": _LEDGER_LIMITATIONS,
+        }
+        if collection.truncated_sources:
+            data["warning"] = (
+                "Broker paging cap reached for "
+                f"{', '.join(collection.truncated_sources)} — this ledger is incomplete. "
+                "Narrow start_date/end_date and re-run."
+            )
+        if detail_level == "full":
+            data["transactions"] = [tx.to_dict() for tx in transactions]
+        return _ok(data, provider="composite", fetched_at=collection.fetched_at)
+    except Exception as e:
+        return _format_error(e)
+
+
+@mcp.tool()
+def get_consolidated_holdings(detail_level: Literal["summary", "full"] = "summary") -> dict[str, Any]:
+    """Every Toss and KIS position merged per symbol, in native currency and KRW.
+
+    Positions are grouped by (symbol, currency), so the same ticker held in several
+    accounts becomes one row with a quantity-weighted average price derived from
+    summed cost basis. Each row reports quantity, avg_price, cost_basis,
+    market_value, unrealized_pnl(_pct), the holding accounts, and *_krw conversions
+    at current spot.
+
+    Args:
+        detail_level: "summary" returns the top 15 positions, "full" returns all
+            with per-account detail.
+
+    Returns:
+        Structured JSON envelope with consolidated holdings.
+    """
+    try:
+        collection = _get_collector().collect_positions()
+        fx = _get_collector().build_fx({h.currency for h in collection.holdings})
+        data = portfolio_engine.consolidate_holdings(collection.holdings, fx)
+        data.update(
+            {
+                "sources_ok": collection.ok_sources,
+                "sources_failed": collection.failed_sources,
+                "truncated_sources": collection.truncated_sources,
+                "health": collection.health,
+                "methodology": _VALUATION_METHODOLOGY,
+            }
+        )
+        if detail_level == "summary":
+            for position in data["positions"]:
+                position.pop("accounts", None)
+            data["positions"] = data["positions"][:15]
+            data["positions_truncated"] = data["position_count"] > 15
+        return _ok(data, provider="composite", fetched_at=collection.fetched_at)
+    except Exception as e:
+        return _format_error(e)
+
+
+@mcp.tool()
+def get_portfolio_summary(include_realized: bool = True, snapshot: bool = True) -> dict[str, Any]:
+    """Whole-portfolio totals across every broker account (READ-ONLY).
+
+    Returns total assets, stock value, cash, cost basis, unrealized P&L, and
+    (optionally) year-to-date realized P&L, dividends, fees, and taxes, with
+    breakdowns by currency, market, and account. All totals are KRW at current spot.
+
+    Args:
+        include_realized: also compute YTD realized P&L from the ledger (slower —
+            it pulls trade history)
+        snapshot: upsert today's NAV snapshot so get_portfolio_history accumulates
+
+    Returns:
+        Structured JSON envelope with the portfolio summary.
+    """
+    try:
+        collector = _get_collector()
+        collection = collector.collect_positions()
+        currencies = {h.currency for h in collection.holdings} | {c.currency for c in collection.cash}
+        fx = collector.build_fx(currencies)
+
+        realized = None
+        realized_health: dict[str, Any] = {}
+        if include_realized:
+            start, end = portfolio_engine.resolve_period("YTD")
+            ledger = collector.collect_transactions(start, end, None, None)
+            realized = portfolio_engine.compute_realized_pnl(ledger.transactions, fx, start, end)
+            realized_health = ledger.health
+
+        data = portfolio_engine.summarize_portfolio(collection.holdings, collection.cash, fx, realized)
+        data["realized_pnl_period"] = realized["period"] if realized else None
+        data["sources_ok"] = collection.ok_sources
+        data["sources_failed"] = collection.failed_sources
+        data["health"] = {**collection.health, **realized_health}
+        data["methodology"] = _VALUATION_METHODOLOGY
+        data["limitations"] = _LEDGER_LIMITATIONS
+
+        # A NAV snapshot must represent the whole portfolio: a failed source or a
+        # truncated holdings page both mean positions are missing, which would
+        # record an understated NAV and distort drawdown/TWR forever after.
+        incomplete = collection.failed_sources + collection.truncated_sources
+        if snapshot and not incomplete:
+            try:
+                stored = _get_nav_store().upsert_snapshot(data, fx_usdkrw=fx.rates.get("USD"))
+                data["snapshot"] = {"stored": True, "snapshot_date": stored.get("snapshot_date")}
+            except Exception as e:  # noqa: BLE001 — a store failure must not fail the summary
+                data["snapshot"] = {"stored": False, "error": classify_error(e)["message"]}
+        else:
+            data["snapshot"] = {
+                "stored": False,
+                "reason": (
+                    "snapshot disabled"
+                    if not snapshot
+                    else f"incomplete portfolio: {', '.join(incomplete)}"
+                ),
+            }
+        return _ok(data, provider="composite", fetched_at=collection.fetched_at)
+    except Exception as e:
+        return _format_error(e)
+
+
+@mcp.tool()
+def get_realized_pnl(
+    period: Literal["MTD", "YTD", "1M", "3M", "6M", "1Y", "ALL"] = "YTD",
+    account: str = "all",
+    symbol: str = "",
+    start_date: str = "",
+    end_date: str = "",
+) -> dict[str, Any]:
+    """Realized P&L per symbol under moving-average cost basis (READ-ONLY).
+
+    The ledger is replayed from the earliest available history so cost basis is
+    correct, then only sales inside the requested window are reported. Symbols whose
+    original purchase predates the broker's available history appear in
+    `incomplete_cost_basis` and their P&L understates cost — do not read those as
+    true gains.
+
+    Args:
+        period: MTD, YTD, 1M, 3M, 6M, 1Y, or ALL (ignored if start_date is given)
+        account: "all", "toss", "kis", or a specific account label
+        symbol: optional symbol filter
+        start_date: ISO YYYY-MM-DD, overrides `period`
+        end_date: ISO YYYY-MM-DD (default: today)
+
+    Returns:
+        Structured JSON envelope with realized P&L.
+    """
+    try:
+        if start_date:
+            start, end = _resolve_dates(start_date, end_date, default_days=365)
+        else:
+            start, end = portfolio_engine.resolve_period(period)
+        accounts = _resolve_accounts(account)
+        # Replay from the start of available history so cost basis is right.
+        ledger_start, _ = portfolio_engine.resolve_period("ALL")
+        collection = _get_collector().collect_transactions(ledger_start, end, accounts, symbol or None)
+        fx = _get_collector().build_fx({tx.currency for tx in collection.transactions})
+        data = portfolio_engine.compute_realized_pnl(collection.transactions, fx, start, end)
+        data.update(
+            {
+                "account_filter": account,
+                "ledger_window": {"start": ledger_start, "end": end},
+                "sources_ok": collection.ok_sources,
+                "sources_failed": collection.failed_sources,
+                "truncated_sources": collection.truncated_sources,
+                "health": collection.health,
+                "fx": fx.to_dict(),
+                "limitations": _LEDGER_LIMITATIONS,
+            }
+        )
+        if collection.truncated_sources:
+            data["warning"] = (
+                "Broker paging cap reached for "
+                f"{', '.join(collection.truncated_sources)} — cost basis is derived from "
+                "an incomplete ledger and realized P&L may be wrong. Narrow the period."
+            )
+        return _ok(data, provider="composite", fetched_at=collection.fetched_at)
+    except Exception as e:
+        return _format_error(e)
+
+
+@mcp.tool()
+def get_portfolio_performance(
+    period: Literal["MTD", "YTD", "1M", "3M", "6M", "1Y", "ALL"] = "YTD",
+    detail_level: Literal["summary", "full"] = "summary",
+) -> dict[str, Any]:
+    """Portfolio return and P&L decomposition for a period (READ-ONLY).
+
+    Reports simple return, time-weighted return (TWR), and XIRR/MWR side by side —
+    they answer different questions and diverge whenever money moves. Also splits
+    P&L into realized, unrealized, dividends, fees, taxes, and the FX component,
+    and includes NAV risk statistics (MDD, volatility, Sharpe, Sortino).
+
+    TWR and the risk statistics need stored NAV snapshots: they are null until
+    get_portfolio_summary (or snapshot_portfolio_nav) has run on at least two days.
+
+    Args:
+        period: MTD, YTD, 1M, 3M, 6M, 1Y, or ALL
+        detail_level: "full" adds per-day and per-month P&L series
+
+    Returns:
+        Structured JSON envelope with performance metrics.
+    """
+    try:
+        start, end = portfolio_engine.resolve_period(period)
+        collector = _get_collector()
+        positions = collector.collect_positions()
+        currencies = {h.currency for h in positions.holdings} | {c.currency for c in positions.cash}
+        fx = collector.build_fx(currencies)
+        summary = portfolio_engine.summarize_portfolio(positions.holdings, positions.cash, fx)
+
+        ledger_start, _ = portfolio_engine.resolve_period("ALL")
+        ledger = collector.collect_transactions(ledger_start, end, None, None)
+        realized = portfolio_engine.compute_realized_pnl(ledger.transactions, fx, start, end)
+
+        store = _get_nav_store()
+        navs = store.range(start, end)
+        risk_free = _risk_free_decimal()
+        data = portfolio_engine.compute_performance(
+            ledger.transactions,
+            navs,
+            summary.get("total_assets_krw"),
+            fx,
+            start,
+            end,
+            realized=realized,
+            unrealized_krw=summary.get("unrealized_pnl_krw"),
+            risk_free_rate=risk_free,
+        )
+        data["realized_by_symbol"] = realized["symbols"][:10]
+        data["incomplete_cost_basis"] = realized["incomplete_cost_basis"]
+        data["sources_failed"] = list({*positions.failed_sources, *ledger.failed_sources})
+        data["truncated_sources"] = list({*positions.truncated_sources, *ledger.truncated_sources})
+        data["methodology"] = {**_VALUATION_METHODOLOGY, **_RETURN_METHODOLOGY}
+        data["limitations"] = _LEDGER_LIMITATIONS
+        if detail_level == "full":
+            flows_by_date: dict[str, float] = {}
+            data["pnl_series"] = portfolio_engine.daily_and_monthly_pnl(navs, flows_by_date)
+            data["health"] = {**positions.health, **ledger.health}
+        return _ok(data, provider="composite", fetched_at=positions.fetched_at)
+    except Exception as e:
+        return _format_error(e)
+
+
+@mcp.tool()
+def get_portfolio_history(
+    period: Literal["MTD", "YTD", "1M", "3M", "6M", "1Y", "ALL"] = "3M",
+    detail_level: Literal["summary", "full"] = "summary",
+) -> dict[str, Any]:
+    """Stored daily NAV snapshots with drawdown and risk statistics (READ-ONLY).
+
+    History accumulates from get_portfolio_summary and snapshot_portfolio_nav calls —
+    it is not backfilled, because no broker API serves historical account NAV.
+
+    Args:
+        period: MTD, YTD, 1M, 3M, 6M, 1Y, or ALL
+        detail_level: "full" includes every snapshot row and the daily P&L series
+
+    Returns:
+        Structured JSON envelope with the NAV series and its statistics.
+    """
+    try:
+        start, end = portfolio_engine.resolve_period(period)
+        store = _get_nav_store()
+        navs = store.range(start, end)
+        first, last = store.bounds()
+        data: dict[str, Any] = {
+            "period": {"start": start, "end": end},
+            "snapshot_count": len(navs),
+            "stored_range": {"first": first, "last": last, "total": store.count()},
+            "statistics": portfolio_engine.nav_statistics(navs, risk_free_rate=_risk_free_decimal()),
+            "latest": navs[-1] if navs else None,
+            "methodology": _RETURN_METHODOLOGY,
+        }
+        if detail_level == "full":
+            data["snapshots"] = navs
+            data["pnl_series"] = portfolio_engine.daily_and_monthly_pnl(navs, {})
+        else:
+            data["snapshots"] = [
+                {"snapshot_date": row["snapshot_date"], "total_value_krw": row["total_value_krw"]}
+                for row in navs
+            ]
+        if not navs:
+            data["note"] = (
+                "No snapshots in range. Call get_portfolio_summary or snapshot_portfolio_nav "
+                "(daily, e.g. from cron) to start accumulating history."
+            )
+        return _ok(data, provider="k-invest")
+    except Exception as e:
+        return _format_error(e)
+
+
+@mcp.tool()
+def snapshot_portfolio_nav(snapshot_date: str = "") -> dict[str, Any]:
+    """Store today's portfolio NAV snapshot for history and TWR (local write).
+
+    Idempotent per date — re-running refreshes that date's row. Writes only derived
+    valuations to the local SQLite store; no broker state is modified. Intended for
+    a daily schedule (see `deploy/` for a systemd timer / cron example).
+
+    Args:
+        snapshot_date: ISO YYYY-MM-DD to record under (default: today)
+
+    Returns:
+        Structured JSON envelope with the stored snapshot.
+    """
+    try:
+        collector = _get_collector()
+        collection = collector.collect_positions()
+        currencies = {h.currency for h in collection.holdings} | {c.currency for c in collection.cash}
+        fx = collector.build_fx(currencies)
+        summary = portfolio_engine.summarize_portfolio(collection.holdings, collection.cash, fx)
+        incomplete = collection.failed_sources + collection.truncated_sources
+        if incomplete:
+            return _fail(
+                "PORTFOLIO_SOURCES_DEGRADED",
+                f"refusing to snapshot an incomplete portfolio: {', '.join(incomplete)}",
+                provider="composite",
+                retryable=True,
+                details={"health": collection.health, "truncated": collection.truncated_sources},
+            )
+        stored = _get_nav_store().upsert_snapshot(
+            summary, snapshot_date=snapshot_date or None, fx_usdkrw=fx.rates.get("USD")
+        )
+        return _ok(
+            {"snapshot": stored, "sources_ok": collection.ok_sources, "db_path": str(_get_nav_store().db_path)},
+            provider="k-invest",
+        )
+    except Exception as e:
+        return _format_error(e)
+
+
+@mcp.tool()
+def get_account_health(detail_level: Literal["summary", "full"] = "summary") -> dict[str, Any]:
+    """Per-account connectivity, auth, and data-freshness status (READ-ONLY).
+
+    Probes every configured broker account and reports status, latency,
+    last_success_at, and the last error per source, so a silent auth failure or a
+    market whose balance call is failing is visible instead of just missing.
+
+    Args:
+        detail_level: "full" also lists the account labels and holdings counts
+
+    Returns:
+        Structured JSON envelope with per-account health.
+    """
+    try:
+        collector = _get_collector()
+        collection = collector.collect_positions()
+        health = collection.health
+        statuses = [entry.get("status") for entry in health.values()]
+        overall = (
+            "ok"
+            if statuses and all(status == "ok" for status in statuses)
+            else "degraded"
+            if any(status == "ok" for status in statuses)
+            else "down"
+        )
+        data: dict[str, Any] = {
+            "overall_status": overall,
+            "checked_at": collection.fetched_at,
+            "account_count": len(health),
+            "accounts": health,
+            "sources_ok": collection.ok_sources,
+            "sources_failed": collection.failed_sources,
+            "data_freshness": {
+                "positions_fetched_at": collection.fetched_at,
+                "cache_policy": "live per call — holdings and cash are never served from cache",
+                "nav_snapshots": dict(zip(("first", "last"), _get_nav_store().bounds())),
+            },
+        }
+        if detail_level == "full":
+            data["holdings_count_by_account"] = _count_by(collection.holdings)
+            data["cash_count_by_account"] = _count_by(collection.cash)
+            data["rolling_health"] = collector.health_report()
+        return _ok(data, provider="k-invest")
+    except Exception as e:
+        return _format_error(e)
+
+
 @mcp.tool()
 def get_portfolio_risk(detail_level: Literal["summary", "full"] = "summary") -> dict[str, Any]:
     """Return best-effort portfolio concentration and currency exposure risk."""
@@ -1452,7 +2244,7 @@ def get_portfolio_risk(detail_level: Literal["summary", "full"] = "summary") -> 
         for label in _get_toss_registry().account_labels():
             probes.append((f"toss:{label}", lambda account_label=label: _get_toss(account_label).get_holdings()))
     except Exception as e:
-        source_errors["toss_accounts"] = str(e)[:200]
+        source_errors["toss_accounts"] = classify_error(e)["message"]
     for source, probe in probes:
         try:
             payload = probe()
@@ -1461,7 +2253,7 @@ def get_portfolio_risk(detail_level: Literal["summary", "full"] = "summary") -> 
                 if pos:
                     positions.append(pos)
         except Exception as e:
-            source_errors[source] = str(e)[:200]
+            source_errors[source] = classify_error(e)["message"]
     data = _risk_from_positions(positions)
     data["source_errors"] = source_errors
     if detail_level == "summary":
@@ -1566,6 +2358,34 @@ def get_market_risk(detail_level: Literal["summary", "full"] = "summary") -> dic
         return _format_error(e)
 
 
+@mcp.custom_route("/healthz", methods=["GET"])
+async def healthz(request: Request) -> Response:
+    return Response("ok", media_type="text/plain")
+
+
+@mcp.tool()
+def get_service_health(mode: Literal["passive"] = "passive") -> dict[str, Any]:
+    """Read cached service/source status without upstream calls or account reads.
+
+    Never-observed and unconfigured sources are distinct from successfully empty
+    history. Freshness is observation age, not a broker data timestamp.
+    """
+    if mode != "passive":
+        return _fail("INVALID_MODE", "Only passive health is supported.")
+    configured = {
+        "toss": True if _toss_accounts is not None or (os.environ.get("TOSS_CLIENT_ID") and os.environ.get("TOSS_CLIENT_SECRET")) else None if os.environ.get("TOSS_CREDS_FILE") else False,
+        "kis": True if _kis_accounts is not None or os.environ.get("KIS_ACCOUNTS_JSON") or (os.environ.get("KIS_APP_KEY") and os.environ.get("KIS_APP_SECRET")) else None if os.environ.get("KIS_ENV_FILE") else False,
+    }
+    data = _health_status.report({k: bool(v) if v is not None else None for k, v in configured.items()})
+    store_status = _oauth_provider.store.health() if _oauth_provider is not None else "disabled"
+    data["auth"] = {"store_status": store_status, "restart_durable": _oauth_provider is not None,
+                    "access_ttl_seconds": _oauth_provider.access_ttl if _oauth_provider else None,
+                    "refresh_ttl_seconds": _oauth_provider.refresh_ttl if _oauth_provider else None}
+    if store_status == "unavailable":
+        data["overall_status"] = "auth_store_unavailable"
+    return _ok(data, provider="k-invest", mode="passive", cache_age_seconds=None)
+
+
 @mcp.tool()
 def health_check() -> dict[str, Any]:
     """Check availability of configured K-invest upstreams with lightweight probes."""
@@ -1583,16 +2403,16 @@ def health_check() -> dict[str, Any]:
             value = probe()
             checks[name] = {"status": "ok" if value else "degraded"}
         except NotConfiguredError as e:
-            checks[name] = {"status": "not_configured", "error": str(e)[:200]}
+            checks[name] = {"status": "not_configured", "error": classify_error(e)["message"]}
         except Exception as e:
             if name == "kis_market_data":
                 try:
                     fallback = _get_toss().get_prices("AAPL")
-                    checks[name] = {"status": "degraded_fallback_ok", "error": str(e)[:200], "fallback_provider": "toss", "fallback_ok": bool(fallback)}
+                    checks[name] = {"status": "degraded_fallback_ok", "error": classify_error(e)["message"], "fallback_provider": "toss", "fallback_ok": bool(fallback)}
                     continue
                 except Exception:
                     pass
-            checks[name] = {"status": "degraded", "error": str(e)[:200]}
+            checks[name] = {"status": "degraded", "error": classify_error(e)["message"]}
     return _ok(checks, provider="k-invest")
 
 

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the K-invest portfolio NAV snapshot once per weekday evening
+
+[Timer]
+# 18:10 KST on weekdays — after the KRX close (15:30) so the snapshot reflects
+# settled domestic marks. Adjust for your own market mix.
+OnCalendar=Mon..Fri 18:10
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

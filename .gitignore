@@ -13,3 +13,6 @@ dist/
 .claude/skills/
 CLAUDE.local.md
 docs/superpowers/
+
+.venv/
+.ruff_cache/

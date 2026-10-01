@@ -62,6 +62,15 @@ class TossAPIError(Exception):
         return str(body)
 
 
+class HistoryRows(list):
+    """List-compatible history carrying paging completeness, never a sync cursor."""
+    def __init__(self, rows=(), *, truncated=False, reason=None):
+        super().__init__(rows)
+        self.truncated = truncated
+        self.complete = not truncated
+        self.truncation_reason = reason
+
+
 class TossClient:
     """Toss Securities API client (read-only).
 
@@ -109,8 +118,8 @@ class TossClient:
                         int(expires_at - time.time()),
                     )
                     return True
-        except Exception as e:
-            logger.warning("Token cache read error: %s", e)
+        except Exception:
+            logger.warning("Toss token cache read failed")
         return False
 
     def _save_cached_token(self, token: str, expires_in: int) -> None:
@@ -130,8 +139,8 @@ class TossClient:
             os.chmod(self._token_cache_path, 0o600)
             self._token_expires = expires_at
             logger.debug("Cached Toss token (expires in %ds)", expires_in)
-        except Exception as e:
-            logger.warning("Token cache write error: %s", e)
+        except Exception:
+            logger.warning("Toss token cache write failed")
 
     def _ensure_token(self) -> str:
         """Get a valid access token, refreshing if needed."""
@@ -323,18 +332,82 @@ class TossClient:
     # ── Order History (READ-ONLY — no create/modify/cancel) ──
 
     def get_orders(
-        self, status: str = "CLOSED", cursor: str | None = None
+        self,
+        status: str = "CLOSED",
+        cursor: str | None = None,
+        symbol: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        limit: int | None = None,
     ) -> dict[str, Any]:
         """주문 목록 조회 (READ-ONLY).
 
         Args:
             status: 'OPEN' (미체결) 또는 'CLOSED' (종료)
             cursor: 페이지네이션 커서
+            symbol: 종목 심볼 필터
+            date_from: 조회 시작일 (YYYY-MM-DD)
+            date_to: 조회 종료일 (YYYY-MM-DD)
+            limit: 페이지 크기
         """
         params: dict[str, Any] = {"status": status}
         if cursor:
             params["cursor"] = cursor
+        if symbol:
+            params["symbol"] = symbol
+        if date_from:
+            params["from"] = date_from
+        if date_to:
+            params["to"] = date_to
+        if limit:
+            params["limit"] = limit
         return self._get("/api/v1/orders", params=params, account=True)
+
+    def iter_closed_orders(
+        self,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        symbol: str | None = None,
+        max_orders: int = 2000,
+        page_size: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Follow the CLOSED order cursor and return every order in the window.
+
+        Args:
+            date_from: 조회 시작일 (YYYY-MM-DD)
+            date_to: 조회 종료일 (YYYY-MM-DD)
+            symbol: 종목 심볼 필터
+            max_orders: 안전 상한 (초과 시 중단)
+            page_size: 요청당 건수
+        """
+        orders: list[dict[str, Any]] = []
+        cursor: str | None = None
+        seen_cursors: set[str] = set()
+        more = False
+        reason = None
+        while len(orders) < max_orders:
+            resp = self.get_orders(
+                status="CLOSED",
+                cursor=cursor,
+                symbol=symbol,
+                date_from=date_from,
+                date_to=date_to,
+                limit=page_size,
+            )
+            result = resp.get("result", {})
+            page = result.get("orders", [])
+            orders.extend(page)
+            more = bool(result.get("hasNext"))
+            if not more:
+                break
+            cursor = result.get("nextCursor")
+            if not page or not cursor or cursor in seen_cursors:
+                reason = "paging_inconsistent"
+                break
+            seen_cursors.add(cursor)
+        truncated = more or len(orders) > max_orders
+        return HistoryRows(orders[:max_orders], truncated=truncated,
+                           reason=reason or ("row_limit" if truncated else None))
 
     def get_order_detail(self, order_id: str) -> dict[str, Any]:
         """주문 상세 조회 (READ-ONLY)."""
@@ -349,22 +422,31 @@ class TossClient:
             limit: 최대 건수
             filled_only: True면 FILLED 상태만 반환
         """
+        if not 1 <= limit <= 2000:
+            raise ValueError("limit must be between 1 and 2000")
         trades: list[dict[str, Any]] = []
         cursor: str | None = None
-        while len(trades) < limit:
+        seen: set[str] = set()
+        more, reason = False, None
+        # Bound even pages containing only unfilled orders.
+        for _ in range(100):
             resp = self.get_orders(status="CLOSED", cursor=cursor)
             result = resp.get("result", {})
             orders = result.get("orders", [])
-            for order in orders:
-                if filled_only and order.get("status") != "FILLED":
-                    continue
-                trades.append(order)
-                if len(trades) >= limit:
-                    break
-            if not result.get("hasNext"):
+            selected = [o for o in orders if not filled_only or o.get("status") == "FILLED"]
+            trades.extend(selected)
+            more = bool(result.get("hasNext")) or len(trades) > limit
+            if len(trades) >= limit or not result.get("hasNext"):
                 break
             cursor = result.get("nextCursor")
-        return trades
+            if not orders or not cursor or cursor in seen:
+                more, reason = True, "paging_inconsistent"
+                break
+            seen.add(cursor)
+        else:
+            more, reason = True, "page_limit"
+        return HistoryRows(trades[:limit], truncated=more,
+                           reason=reason or ("row_limit" if more else None))
 
     # ── Lifecycle ─────────────────────────────────────────
 

@@ -17,6 +17,7 @@ class TossCredentials:
     label: str
     client_id: str
     client_secret: str
+    account_id: str = ""
 
 
 def _clean_label(value: str) -> str:
@@ -30,7 +31,7 @@ def _account_from_mapping(raw: Mapping[str, Any], fallback_label: str) -> TossCr
     if not client_id or not client_secret:
         return None
     label = _clean_label(str(raw.get("label") or raw.get("name") or fallback_label))
-    return TossCredentials(label=label, client_id=client_id, client_secret=client_secret)
+    return TossCredentials(label=label, client_id=client_id, client_secret=client_secret, account_id=str(raw.get("account_id") or ""))
 
 
 def _accounts_from_payload(payload: Any) -> list[TossCredentials]:
@@ -124,5 +125,6 @@ class TossAccountRegistry:
             client_secret=account.client_secret,
             token_cache_path=cache_path,
         )
+        client.journal_account_key = "toss:" + (account.account_id or account.label)
         self._clients[account.label] = client
         return client

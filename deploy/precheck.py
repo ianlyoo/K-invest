@@ -15,8 +15,8 @@ import sys
 from pathlib import Path
 
 STATE = Path('/var/lib/toss-mcp/oauth')
-UPGRADE_FROM = 'cc4192b0b61d395ff1ee9c9db5d2e9a015bd8ab3'
-UPGRADE_DIGEST = '56a8e552e2862ab79ce2c2999264643851e86995a774273d70b799bf177bd271'
+UPGRADE_FROM = '6b6d90ecbe90130bcbefd6a63d42ada15f8d06a1'
+UPGRADE_DIGEST = 'c96c6d7a457f97820522f29e370428483d64d937b6706fb776fad42a774cc0b6'
 MANAGED_DROPIN = Path('/etc/systemd/system/toss-mcp.service.d/90-durable-oauth.conf')
 SANDBOX_NAMES = ('ProtectSystem', 'ProtectHome', 'ReadOnlyPaths', 'InaccessiblePaths', 'ReadWritePaths', 'PrivateTmp')
 PROPERTY_NAMES = SANDBOX_NAMES + ('User', 'FragmentPath', 'WorkingDirectory', 'ActiveState',
@@ -139,9 +139,14 @@ def main(revision, mode='deploy'):
             checks['approved_upgrade_source'] = upgrade_source_verified()
             if not checks['approved_upgrade_source']:
                 raise ValueError('UpgradeSourceMismatch')
+            stage = 'service_credential_source_metadata'
+            metadata = subprocess.check_output(['sudo', '-n', 'stat', '-c', '%a:%u:%g:%F',
+                '/etc/toss-mcp/invest-desk-token'], text=True, stderr=subprocess.DEVNULL).strip()
+            checks['service_credential_source_private'] = metadata == '600:0:0:regular file'
         stage = 'dropin_read_and_field_parse'
         sensitive_fields = {'KINVEST_OAUTH_STATE_DIR', 'MCP_OAUTH_TOKEN_TTL',
-                            'MCP_OAUTH_REFRESH_TOKEN_TTL', 'MCP_OAUTH_REFRESH_GRACE_SECONDS'}
+                            'MCP_OAUTH_REFRESH_TOKEN_TTL', 'MCP_OAUTH_REFRESH_GRACE_SECONDS',
+                            'KINVEST_SERVICE_TOKEN', 'KINVEST_SERVICE_TOKEN_FILE'}
         direct = {'WorkingDirectory', 'ExecStart', 'UMask'}
         for file in shlex.split(prop('DropInPaths')):
             if upgrade and Path(file) == MANAGED_DROPIN:
@@ -166,6 +171,10 @@ def main(revision, mode='deploy'):
                         name = assignment.partition('=')[0]
                         if name in sensitive_fields:
                             conflicts.append(name)
+                elif key in {'LoadCredential', 'LoadCredentialEncrypted'}:
+                    assignments = shlex.split(val)
+                    if not assignments or any(a.partition(':')[0] == 'invest-desk-token' for a in assignments):
+                        conflicts.append(key)
         checks['no_conflicting_dropins'] = not conflicts
         stage = 'environment_file_reference_metadata'
         raw_files = prop('EnvironmentFiles')

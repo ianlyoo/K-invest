@@ -36,22 +36,75 @@ After approval for the exact clean branch HEAD, run
 `ceab866` and uses the same exclusive release/venv creation, ruff/full-pytest
 validation and authenticated readiness gate as initial deployment.
 
-The supported source is specifically `cc4192b0b61d395ff1ee9c9db5d2e9a015bd8ab3`.
+The supported source is specifically the live `6b6d90ecbe90130bcbefd6a63d42ada15f8d06a1`.
 The live `90-durable-oauth.conf` must match its recorded receipt and pinned SHA-256
-`56a8e552e2862ab79ce2c2999264643851e86995a774273d70b799bf177bd271`.
+`c96c6d7a457f97820522f29e370428483d64d937b6706fb776fad42a774cc0b6`.
 Precheck accepts only that verified managed drop-in; conflicting overrides from
 other drop-ins still fail. Source guards are repeated before activation.
 
 An exclusive root-private `/var/lib/toss-mcp/rollback-EXACT_APPROVED_SHA` captures
-the current drop-in and its fingerprint. Only the WorkingDirectory and non-empty
-ExecStart release paths change. A private, exclusively created staging file is
+the current drop-in and its fingerprint. WorkingDirectory and non-empty ExecStart
+release paths change; the upgrade also adds the two service-credential directives
+below. A private, exclusively created staging file is
 atomically renamed over the guarded drop-in. Existing rollback/staging paths,
 edited source/receipts and failed validation stop before activation. The existing
 0700 state directory is required; upgrade creates, copies or restores no DB/state.
 
 `deploy/release.sh rollback EXACT_APPROVED_SHA` verifies the installed fingerprint
-and saved source bytes, then restores the exact `cc4192b` drop-in and runs its
+and saved source bytes, then restores the exact `6b6d90e` drop-in and runs its
 readiness gate. Startup/readiness failure invokes this rollback automatically.
 Owner-edited files or an existing rollback copy stop restoration. Both versions
 use the same durable OAuth DB, so grants persist and no reconnect is expected.
 This upgrade is intentionally not a general upgrade from arbitrary releases.
+
+## Invest Desk service principal (55d02626 item 2a)
+
+The root-owned 0600 source is `/etc/toss-mcp/invest-desk-token`. Provision only a
+new random value under separate deployment/credential approval; never reuse the
+legacy bearer, print it, put it in an environment value, or read an existing secret
+to implement this code change. Deliver an `install -m 0600` copy to
+`/etc/invest-desk/kinvest-token` for its existing LoadCredential configuration.
+The delivery's DEPLOY.md contains the guarded host-generation procedure.
+
+The candidate upgrade appends only:
+
+```ini
+LoadCredential=invest-desk-token:/etc/toss-mcp/invest-desk-token
+Environment=KINVEST_SERVICE_TOKEN_FILE=%d/invest-desk-token
+```
+
+Systemd supplies a private runtime credential file readable by the service;
+`%d` selects its credential directory. No sandbox relaxation is needed. Precheck
+and activation verify only root source-file metadata (regular file, 0600).
+Validation scrubs service credential variables. Startup reads the configured
+file once, retains only its digest, and fails with fixed reason names on an
+unreadable/unsafe/invalid file or a legacy-bearer collision. The feature is disabled
+when no file path is configured; inline `KINVEST_SERVICE_TOKEN` is refused.
+
+Use the existing port 8100 with proxy-header rewriting disabled: this preserves
+Invest Desk's pinned URL while checking the socket peer and excluding nginx traffic.
+Only literal `127.0.0.1`/`::1` peers without any X-Forwarded-For, X-Real-IP or
+Forwarded header can authenticate as the service principal. Header presence,
+including empty values, rejects it; a recognized service token never falls through
+to OAuth. The packaged Python entrypoint enforces `proxy_headers=False`; other
+ASGI launchers must do the same. The deployment reviewer must privately verify
+that nginx attaches at least one of those headers to every public upstream request.
+A headerless loopback proxy is indistinguishable from a direct peer on this port;
+stop rather than enable this path if that precondition is not true.
+
+`service_auth.SERVICE_READ_TOOLS` is the sole server permission constant, matching
+the current Invest Desk client exactly: `get_kis_accounts`, `get_toss_accounts`,
+`get_kis_trade_history`, `get_toss_trade_history`, `get_kis_domestic_balance`,
+`get_kis_overseas_balance`, `get_toss_holdings`, `get_candles`. Tools/list is filtered;
+calls to everything else return MCP `isError=true` / `Forbidden` before dispatch,
+including registered order/trade mutation tools, health, quote and FX tools.
+Widening requires a matching reviewed client change. Typed principal identity
+prevents OAuth client-name collisions or shared SDK tool caches from granting
+service permissions. Existing static-bearer and ChatGPT OAuth policies/grants
+remain unchanged; service authentication creates/refreshes no OAuth grants.
+
+Rollback restores the exact saved `6b6d90e` drop-in, removing both credential
+directives and running its existing readiness gate. Preserve OAuth DB and both
+token files; do not restore state snapshots or reconnect ChatGPT. Invest Desk's
+new token is unavailable against the old release after rollback; coordinate its
+read-path rollout separately, without falling back to the legacy bearer.

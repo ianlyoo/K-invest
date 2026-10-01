@@ -16,7 +16,7 @@ def synthetic_host(tmp_path, fail_stage=None):
     var = tmp_path / "var"
     etc = tmp_path / "etc"
     script = tmp_path / "procedure.sh"
-    text = SCRIPT.read_text().replace("/home/ubuntu", str(home)).replace("/var/lib", str(var)).replace("/etc/systemd/system", str(etc))
+    text = SCRIPT.read_text().replace("/home/ubuntu", str(home)).replace("/var/lib", str(var)).replace("/etc/systemd/system", str(etc)).replace("/etc/toss-mcp/", str(etc / "toss-mcp") + "/")
     script.write_text(text)
     release = home / "toss-mcp-releases" / REV
     release.mkdir(parents=True)

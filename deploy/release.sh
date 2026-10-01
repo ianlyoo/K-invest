@@ -13,9 +13,10 @@ dropdir=/etc/systemd/system/toss-mcp.service.d
 dropin=$dropdir/90-durable-oauth.conf
 unit=/etc/systemd/system/toss-mcp.service
 state=/var/lib/toss-mcp/oauth
-upgrade_from=cc4192b0b61d395ff1ee9c9db5d2e9a015bd8ab3
-upgrade_digest=56a8e552e2862ab79ce2c2999264643851e86995a774273d70b799bf177bd271
+upgrade_from=6b6d90ecbe90130bcbefd6a63d42ada15f8d06a1
+upgrade_digest=c96c6d7a457f97820522f29e370428483d64d937b6706fb776fad42a774cc0b6
 oldrelease=/home/ubuntu/toss-mcp-releases/$upgrade_from
+service_source=/etc/toss-mcp/invest-desk-token
 guard_upgrade() {
   sudo test -f "$dropin" && sudo test ! -L "$dropin" || fail 'Upgrade drop-in missing or symlink'
   local receipt=/var/lib/toss-mcp/rollback-$upgrade_from/installed-dropin.sha256
@@ -55,6 +56,7 @@ case "$mode" in
     sudo test ! -L "$backup" || fail 'Rollback backup symlink'
     if [[ "$mode" == upgrade-activate ]]; then
       guard_upgrade
+      [[ "$(sudo stat -c '%a:%u:%g:%F' "$service_source")" == '600:0:0:regular file' ]] || fail 'Service credential source must be root-owned 0600 regular file'
     else
       sudo test ! -e "$dropin" || fail 'Drop-in already exists'
       sudo test ! -L "$dropin" || fail 'Drop-in symlink'
@@ -69,6 +71,7 @@ case "$mode" in
     unset TOSS_CLIENT_ID TOSS_CLIENT_SECRET TOSS_CREDS_FILE TOSS_ACCOUNTS_JSON
     unset KIS_APP_KEY KIS_APP_SECRET KIS_CANO KIS_ENV_FILE KIS_ACCOUNTS_JSON
     unset MCP_OAUTH_TOKEN_TTL MCP_OAUTH_REFRESH_TOKEN_TTL MCP_OAUTH_REFRESH_GRACE_SECONDS
+    unset KINVEST_SERVICE_TOKEN KINVEST_SERVICE_TOKEN_FILE
     .venv/bin/python -m pip install --no-cache-dir -r requirements-validated.txt
     .venv/bin/ruff check .
     .venv/bin/python -m pytest -q
@@ -96,9 +99,11 @@ case "$mode" in
       sudo cp -aT "$dropin" "$backup/previous-dropin.conf"
       [[ "$(sudo sha256sum "$backup/previous-dropin.conf" | cut -d ' ' -f 1)" == "$upgrade_digest" ]] || fail 'Upgrade backup digest mismatch'
       sudo sha256sum "$backup/previous-dropin.conf" | sudo bash -c 'set -euo pipefail; set -o noclobber; umask 077; cat > "$1"' -- "$backup/previous-dropin.sha256"
-      # Derive from the approved bytes, changing only the two release paths.
+      # Derive from approved bytes: release paths plus reviewed credential paths.
       sudo sed -e "s|^WorkingDirectory=$oldrelease$|WorkingDirectory=$release|" \
         -e "s|^ExecStart=$oldrelease/.venv/bin/python $oldrelease/server.py$|ExecStart=$release/.venv/bin/python $release/server.py|" \
+        -e "\$aLoadCredential=invest-desk-token:$service_source" \
+        -e '$aEnvironment=KINVEST_SERVICE_TOKEN_FILE=%d/invest-desk-token' \
         "$backup/previous-dropin.conf" | sudo bash -c 'set -euo pipefail; set -o noclobber; umask 077; cat > "$1"; chmod 0644 "$1"' -- "$backup/next-dropin.conf"
       # Prepare the rollback receipt before the atomic unit-file replacement.
       sudo sha256sum "$backup/next-dropin.conf" | sed "s|$backup/next-dropin.conf$|$dropin|" | \

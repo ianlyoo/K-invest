@@ -37,6 +37,7 @@ py-modules = [
   "server",
   "oauth_provider",
   "oauth_store",
+  "service_auth",
   "auth_observability",
   "error_taxonomy",
   "health_status",

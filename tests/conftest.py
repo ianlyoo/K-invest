@@ -15,6 +15,7 @@ _RUNTIME = tempfile.TemporaryDirectory(prefix="kinvest-tests-", dir="/tmp")
 os.environ["KINVEST_CACHE_DIR"] = _RUNTIME.name
 os.environ["KINVEST_OAUTH_STATE_DIR"] = _RUNTIME.name + "/oauth"
 for _name in ("MCP_AUTH_TOKEN", "MCP_OAUTH_CLIENT_ID", "MCP_OAUTH_CLIENT_SECRET", "TOSS_CLIENT_ID", "TOSS_CLIENT_SECRET",
+              "KINVEST_SERVICE_TOKEN", "KINVEST_SERVICE_TOKEN_FILE",
               "TOSS_CREDS_FILE", "TOSS_ACCOUNTS_JSON", "MCP_OAUTH_REFRESH_GRACE_SECONDS", "KIS_APP_KEY", "KIS_APP_SECRET", "KIS_CANO", "KIS_ENV_FILE", "KIS_ACCOUNTS_JSON"):
     os.environ.pop(_name, None)
 

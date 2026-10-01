@@ -42,7 +42,7 @@ from mcp.server.auth.routes import create_auth_routes
 from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
-from mcp.types import ToolAnnotations
+from mcp.types import CallToolResult, TextContent, ToolAnnotations
 from pydantic import AnyHttpUrl, AnyUrl
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
@@ -62,6 +62,13 @@ from oauth_store import AuthStoreUnavailable
 from portfolio_sources import PortfolioCollector, Providers, kis_source
 from portfolio_store import NavStore
 from sec_api import SECClient
+from service_auth import (
+    SERVICE_READ_TOOLS,
+    ServicePeerMiddleware,
+    ServiceTokenVerifier,
+    is_service_request,
+    load_service_token,
+)
 from toss_accounts import TossAccountRegistry
 from toss_api import TossClient
 from yfinance_api import YFinanceClient
@@ -99,6 +106,7 @@ apply_env_file(Path.cwd() / ".env")
 apply_env_file(Path(__file__).resolve().parent / ".env")
 
 MCP_AUTH_TOKEN = os.environ.get("MCP_AUTH_TOKEN", "").strip()
+_SERVICE_TOKEN_DIGEST = load_service_token(MCP_AUTH_TOKEN)
 if not MCP_AUTH_TOKEN:
     logger.warning(
         "MCP_AUTH_TOKEN not set — server will refuse to start (main() exits). "
@@ -155,8 +163,10 @@ def _resolve_token_verifier() -> TokenVerifier | None:
     if not MCP_AUTH_TOKEN:
         return None
     if _OAUTH_ENABLED and _oauth_provider is not None:
-        return DualTokenVerifier(MCP_AUTH_TOKEN, _oauth_provider)
-    return StaticTokenVerifier(MCP_AUTH_TOKEN)
+        existing = DualTokenVerifier(MCP_AUTH_TOKEN, _oauth_provider)
+    else:
+        existing = StaticTokenVerifier(MCP_AUTH_TOKEN)
+    return ServiceTokenVerifier(_SERVICE_TOKEN_DIGEST, existing) if _SERVICE_TOKEN_DIGEST else existing
 
 
 # ── MCP Server ──────────────────────────────────────────
@@ -165,7 +175,30 @@ class ObservedFastMCP(FastMCP):
     def streamable_http_app(self):
         app = super().streamable_http_app()
         app.add_middleware(AuthObservability)
+        app.add_middleware(ServicePeerMiddleware)
         return app
+
+    def _service_principal(self):
+        try:
+            request = self._mcp_server.request_context.request
+        except LookupError:
+            return False
+        return is_service_request(request)
+
+    async def list_tools(self):
+        tools = await super().list_tools()
+        return [tool for tool in tools if tool.name in SERVICE_READ_TOOLS] if self._service_principal() else tools
+
+    async def call_tool(self, name, arguments):
+        if self._service_principal() and name not in SERVICE_READ_TOOLS:
+            return CallToolResult(isError=True, content=[TextContent(type="text", text="Forbidden")])
+        return await super().call_tool(name, arguments)
+
+    async def run_streamable_http_async(self):
+        import uvicorn
+        config = uvicorn.Config(self.streamable_http_app(), host=self.settings.host,
+            port=self.settings.port, log_level=self.settings.log_level.lower(), proxy_headers=False)
+        await uvicorn.Server(config).serve()
 
 
 mcp = ObservedFastMCP(

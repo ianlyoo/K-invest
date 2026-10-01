@@ -8,8 +8,8 @@ from types import SimpleNamespace
 import pytest
 from test_deploy_procedure import REV, synthetic_host
 
-FROM = 'cc4192b0b61d395ff1ee9c9db5d2e9a015bd8ab3'
-DIGEST = '56a8e552e2862ab79ce2c2999264643851e86995a774273d70b799bf177bd271'
+FROM = '6b6d90ecbe90130bcbefd6a63d42ada15f8d06a1'
+DIGEST = 'c96c6d7a457f97820522f29e370428483d64d937b6706fb776fad42a774cc0b6'
 
 
 def upgrade_host(tmp_path, fail_stage=None):
@@ -39,17 +39,25 @@ def upgrade_host(tmp_path, fail_stage=None):
     python.parent.mkdir(parents=True)
     python.write_text('#!/bin/bash\nset -euo pipefail\nprintf "old-readiness\\n" >> "$FIXTURE_LOG"\n')
     python.chmod(0o755)
+    source = host.unit.parent / 'toss-mcp/invest-desk-token'
+    source.parent.mkdir(mode=0o700)
+    source.write_text('synthetic-private-service-token-with-32-characters\n')
+    source.chmod(0o600)
+    stat = Path(host.env['PATH'].split(':')[0]) / 'stat'
+    stat.write_text('#!/bin/bash\nset -euo pipefail\nif [[ "$*" == *invest-desk-token* ]]; then printf "600:0:0:regular file\\n"; else printf "700:ubuntu:ubuntu\\n"; fi\n')
     return host, original, database
 
 
-def test_upgrade_changes_only_release_paths_and_rollback_restores_bytes(tmp_path):
+def test_upgrade_adds_only_credential_path_metadata_and_rollback_restores_bytes(tmp_path):
     host, original, database = upgrade_host(tmp_path)
     inode = database.stat().st_ino
     unit = host.unit.read_bytes()
     other = host.dropin.parent / '10-owner.conf'
     other.write_text('fixture-owner-dropin\n')
     assert host.run('upgrade-activate').returncode == 0
-    expected = original.replace(str(host.release.parent / FROM), str(host.release))
+    expected = (original.replace(str(host.release.parent / FROM), str(host.release)) +
+        f'LoadCredential=invest-desk-token:{host.unit.parent}/toss-mcp/invest-desk-token\n'
+        'Environment=KINVEST_SERVICE_TOKEN_FILE=%d/invest-desk-token\n')
     assert host.dropin.read_text() == expected
     assert (host.backup / 'previous-dropin.conf').read_text() == original
     assert host.backup.stat().st_mode & 0o777 == 0o700
@@ -92,7 +100,7 @@ def test_upgrade_rejects_tampering_existing_targets_and_missing_state(tmp_path, 
     assert host.dropin.read_bytes() == before and not host.log.exists()
 
 
-def test_upgrade_readiness_failure_restores_cc4192b_without_touching_state(tmp_path):
+def test_upgrade_readiness_failure_restores_live_release_without_touching_state(tmp_path):
     host, original, database = upgrade_host(tmp_path, 'readiness')
     result = host.run('upgrade-activate')
     assert result.returncode != 0 and 'guarded rollback completed' in result.stderr
@@ -150,7 +158,7 @@ def test_upgrade_precheck_verifies_pinned_digest_and_exact_receipt(monkeypatch, 
     assert precheck.upgrade_source_verified() is (tamper == 'none')
 
 
-@pytest.mark.parametrize('other_override', [False, True])
+@pytest.mark.parametrize('other_override', [None, 'ExecStart', 'KINVEST_SERVICE_TOKEN_FILE', 'LoadCredential', 'quoted-LoadCredential'])
 def test_upgrade_precheck_allows_only_verified_managed_dropin(monkeypatch, capsys, other_override):
     from deploy import precheck
     props = {name: '' for name in precheck.PROPERTY_NAMES}
@@ -168,11 +176,17 @@ def test_upgrade_precheck_allows_only_verified_managed_dropin(monkeypatch, capsy
     monkeypatch.setattr(Path, 'is_symlink', lambda path: False)
     monkeypatch.setattr(precheck.os, 'statvfs', lambda path: SimpleNamespace(f_flag=0))
     monkeypatch.setattr(precheck.os, 'access', lambda *args: True)
+    monkeypatch.setattr(precheck.subprocess, 'check_output', lambda *args, **kwargs: '600:0:0:regular file\n')
     def read(path):
         assert Path(path) != precheck.MANAGED_DROPIN  # Already verified; skip it.
-        return '[Service]\nExecStart=/fixture/override\n' if other_override else '[Service]\nRestart=always\n'
+        directives = {'ExecStart': 'ExecStart=/fixture/override',
+            'KINVEST_SERVICE_TOKEN_FILE': 'Environment=KINVEST_SERVICE_TOKEN_FILE=/fixture/override',
+            'LoadCredential': 'LoadCredential=invest-desk-token:/fixture/override',
+            'quoted-LoadCredential': 'LoadCredential="invest-desk-token:/fixture/override"'}
+        return '[Service]\n' + directives.get(other_override, 'Restart=always') + '\n'
     monkeypatch.setattr(precheck, 'private_unit_read', read)
     assert precheck.main('b' * 40, 'upgrade') == (1 if other_override else 0)
     output = capsys.readouterr().out
     assert 'fixture/override' not in output
-    assert ('"ExecStart"' in output) is other_override
+    if other_override:
+        assert f'"{other_override.removeprefix("quoted-")}"' in output

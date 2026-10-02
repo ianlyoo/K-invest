@@ -84,6 +84,38 @@ def _subprocess_env(toss_cache: Path) -> dict[str, str]:
     return env
 
 
+def _run_json(
+    args: list[str], *, label: str, timeout: int, env: dict[str, str],
+    fallback: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Run a CLI returning a JSON object, preserving its diagnostic envelope.
+
+    A failed retry keeps the original analysis via ``fallback``. Process launch
+    errors and timeouts still propagate to the caller, as before.
+    """
+    result = subprocess.run(args, capture_output=True, text=True, timeout=timeout, env=env)
+    if result.returncode != 0:
+        error = {
+            "error": True,
+            "message": f"{label} failed with return code {result.returncode}",
+            "stderr": _tail(result.stderr),
+        }
+    else:
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            pass
+        else:
+            if isinstance(payload, dict):
+                return payload
+        error = {
+            "error": True,
+            "message": f"Failed to parse {label.lower()} JSON output",
+            "stdout": _tail(result.stdout),
+        }
+    return fallback if fallback is not None else error
+
+
 class MarginTARunner:
     """Run margin-ta analysis via subprocess."""
 
@@ -144,33 +176,14 @@ class MarginTARunner:
 
         env = _subprocess_env(self._toss_cache)
         logger.info("Running margin-ta: %s", " ".join(args))
-        result = subprocess.run(args, capture_output=True, text=True, timeout=120, env=env)
-        if result.returncode != 0:
-            return {
-                "error": True,
-                "message": f"margin-ta failed with return code {result.returncode}",
-                "stderr": _tail(result.stderr),
-            }
-        try:
-            payload = json.loads(result.stdout)
-        except json.JSONDecodeError:
-            return {
-                "error": True,
-                "message": "Failed to parse margin-ta JSON output",
-                "stdout": _tail(result.stdout),
-            }
+        payload = _run_json(args, label="margin-ta", timeout=120, env=env)
         if _has_toss_401_warning(payload):
             try:
                 self._toss_cache.unlink(missing_ok=True)
             except OSError:
                 pass
             logger.warning("Retrying margin-ta once after Toss candles 401")
-            retry = subprocess.run(args, capture_output=True, text=True, timeout=120, env=env)
-            if retry.returncode == 0:
-                try:
-                    return json.loads(retry.stdout)
-                except json.JSONDecodeError:
-                    pass
+            return _run_json(args, label="margin-ta", timeout=120, env=env, fallback=payload)
         return payload
 
     def get_entry_plan(self, symbol: str, market: str = "auto", detail_level: str = "summary") -> dict[str, Any]:
@@ -244,27 +257,12 @@ class MarginTARunner:
             args.append("--no-kr")
 
         logger.info("Running margin-ta market_risk: %s", " ".join(args))
-        result = subprocess.run(
+        return _run_json(
             args,
-            capture_output=True,
-            text=True,
+            label="market_risk",
             timeout=180,
             env=_subprocess_env(self._toss_cache),
         )
-        if result.returncode != 0:
-            return {
-                "error": True,
-                "message": f"market_risk failed with return code {result.returncode}",
-                "stderr": _tail(result.stderr),
-            }
-        try:
-            return json.loads(result.stdout)
-        except json.JSONDecodeError:
-            return {
-                "error": True,
-                "message": "Failed to parse market_risk JSON output",
-                "stdout": _tail(result.stdout),
-            }
 
     def scan_top_stocks(self, top_n: int = 5, min_score: int = 0) -> dict[str, Any]:
         """Scan top-N stocks from NASDAQ 100 + S&P 500.
@@ -289,27 +287,12 @@ class MarginTARunner:
             args.extend(["--min-score", str(min_score)])
 
         logger.info("Running margin-ta scanner: %s", " ".join(args))
-        result = subprocess.run(
+        return _run_json(
             args,
-            capture_output=True,
-            text=True,
+            label="Scan",
             timeout=1800,  # 30 min max
             env=_subprocess_env(self._toss_cache),
         )
-        if result.returncode != 0:
-            return {
-                "error": True,
-                "message": f"Scan failed with return code {result.returncode}",
-                "stderr": _tail(result.stderr),
-            }
-        try:
-            return json.loads(result.stdout)
-        except json.JSONDecodeError:
-            return {
-                "error": True,
-                "message": "Failed to parse scan JSON output",
-                "stdout": _tail(result.stdout),
-            }
 
 
 def _has_toss_401_warning(payload: dict[str, Any]) -> bool:

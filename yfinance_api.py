@@ -8,14 +8,101 @@ Provides financial statements, key metrics, and historical OHLCV data.
 from __future__ import annotations
 
 import logging
+import re
+from concurrent.futures import Future, ThreadPoolExecutor
+from copy import deepcopy
+from datetime import date, datetime, timedelta, timezone
+from threading import Lock
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import yfinance as yf
 
+from kinvest_common import YFINANCE_LOCK, synchronized
 from yfinance_consensus import analyst_consensus
-from yfinance_metrics import dividend_yield_pct, growth_fields, null_reason, pct
+from yfinance_metrics import (
+    dividend_yield_pct,
+    growth_fields,
+    null_reason,
+    pct,
+    percent_value,
+)
 
 logger = logging.getLogger("k-invest.yf")
+
+# One bounded background worker shares the existing Yahoo transport lock. A cold
+# production request queues a refresh and returns unresolved immediately; neither
+# repeated tool calls nor changing query windows cause repeated network reads.
+_DIVIDEND_CACHE = {}
+_DIVIDEND_CACHE_LOCK = Lock()
+_DIVIDEND_REFRESH = ThreadPoolExecutor(max_workers=1, thread_name_prefix='dividend-reference')
+_DIVIDEND_CACHE_LIMIT = 256
+
+
+class _DividendJob:
+    def __init__(self, future, previous):
+        self.future, self.previous = future, previous
+
+    def done(self):
+        return self.future.done()
+
+    def result(self, timeout=None):
+        return self.future.result(timeout=timeout)
+
+    def cancel(self):
+        return self.future.cancel()
+
+
+def _dividend_now():
+    return datetime.now(timezone.utc)
+
+
+def _dividend_unavailable(symbol, currency, start, end, reason):
+    return {'rows': [], 'coverage': [{'symbol': symbol, 'currency': currency, 'start': start, 'end': end,
+            'status': 'limited', 'reasons': [reason]}]}
+
+
+def _schedule_bound(value, currency):
+    if len(value) == 10:
+        return datetime.fromisoformat(value).date()
+    stamp = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    if stamp.utcoffset() is None:
+        raise ValueError('INVALID_SCHEDULE_RANGE')
+    return stamp.astimezone(ZoneInfo('America/New_York' if currency == 'USD' else 'Asia/Seoul')).date()
+
+
+def _project_schedule(data, symbol, currency, start, end, instrument=None):
+    result = deepcopy(data)
+    try:
+        first, last = _schedule_bound(start, currency), _schedule_bound(end, currency)
+        proof = result['coverage'][0]
+        from toss_dividends import check_instrument_identity, estimated_coverage
+        if not estimated_coverage(proof):
+            if proof.get('status') != 'limited' or not proof.get('reasons'):
+                raise ValueError('INVALID_SCHEDULE_RANGE')
+            # Invalid evidence stays invalid; projection must not mask its cause
+            # with an incidental boundary failure or retain numeric rows.
+            result['rows'] = []
+            proof.update(symbol=symbol, currency=currency, start=start, end=end)
+            return result
+        if currency == 'KRW':
+            check_instrument_identity(result.get('binding') or {}, symbol, instrument)
+        if first > last or first.isoformat() < proof['start'] or first.isoformat() > proof['end']:
+            missing = _dividend_unavailable(symbol, currency, start, end, 'DIVIDEND_WINDOW_OUTSIDE_DAILY_CACHE')
+            missing['cache_evidence'] = result.get('cache_evidence')
+            return missing
+        # A request past the copy's last fully observed day is clipped to that day,
+        # never extended: the proof's end bounds which intervals can use it.
+        last = min(last, date.fromisoformat(proof['end']))
+        proof.update(start=first.isoformat(), end=last.isoformat())
+        result['rows'] = [r for r in result['rows'] if r['payment_start'] <= last.isoformat()
+                          and r['payment_end'] >= first.isoformat()]
+        return result
+    except ValueError as exc:
+        reason = str(exc) if str(exc).startswith(('DIVIDEND_', 'INVALID_TOSS_')) else 'INVALID_SCHEDULE_RANGE'
+        return _dividend_unavailable(symbol, currency, start, end, reason)
+    except (KeyError, TypeError, IndexError):
+        return _dividend_unavailable(symbol, currency, start, end, 'INVALID_SCHEDULE_RANGE')
 
 
 def _safe_float(v: Any) -> float | None:
@@ -79,6 +166,156 @@ class YFinanceClient:
         # yfinance uses requests internally; no httpx client needed
         pass
 
+    def get_dividend_schedule(self, symbol: str, *, currency: str, start: str, end: str,
+                              background: bool = False, instrument: dict | None = None) -> dict:
+        """Daily, per-symbol validated history cache shared across client instances.
+
+        The production adapter uses background=True: a cold/missing/expired day
+        uses a persisted good copy immediately, or returns refresh-pending when
+        none exists. A single worker and per-symbol file lock refresh through this
+        client at most once per market calendar day (New York for USD, Seoul for
+        KRW) across processes. Failed refreshes keep the old copy's observation
+        time/coverage; query bounds never extend it.
+        The cache lives under kinvest_common.cache_dir(), with 256 in-memory symbols
+        and three years per schedule. Synchronous mode supports mocked prewarming.
+        """
+        if not isinstance(symbol, str) or not (
+                currency == 'USD' and re.fullmatch(r'[A-Z][A-Z0-9.\-]{0,19}', symbol)
+                or currency == 'KRW' and re.fullmatch(r'[0-9A-Z]{6}(?:\.K[QS])?', symbol)):
+            return _dividend_unavailable(symbol, currency, start, end, 'DIVIDEND_SYMBOL_BINDING_UNAVAILABLE')
+        now = _dividend_now()
+        from toss_dividend_cache import (
+            attempted_today,
+            load,
+            market_day,
+            refresh,
+            schedule,
+        )
+
+        key = (market_day(currency, now).isoformat(), symbol, currency)
+        with _DIVIDEND_CACHE_LOCK:
+            for old in list(_DIVIDEND_CACHE):
+                if old[0] != market_day(old[2], now).isoformat():
+                    _DIVIDEND_CACHE.pop(old).cancel()
+            future = _DIVIDEND_CACHE.get(key)
+            if future is None:
+                if len(_DIVIDEND_CACHE) >= _DIVIDEND_CACHE_LIMIT:
+                    return _dividend_unavailable(symbol, currency, start, end, 'DIVIDEND_CACHE_CAPACITY')
+                previous = load(symbol, currency, now)
+                if attempted_today(previous, now):
+                    task = Future()
+                    task.set_result(schedule(previous) or _dividend_unavailable(symbol, currency, start, end,
+                        previous['failure_reason'] or 'PUBLIC_DIVIDEND_SCHEDULE_UNAVAILABLE'))
+                else:
+                    identity = deepcopy(instrument)
+                    task = _DIVIDEND_REFRESH.submit(refresh, symbol, currency,
+                        lambda observed: self._fetch_daily_dividends(symbol, currency, observed, identity),
+                        clock=_dividend_now)
+                future = _DividendJob(task, previous)
+                _DIVIDEND_CACHE[key] = future
+        if background and not future.done():
+            previous_data = schedule(future.previous, pending=True)
+            if previous_data:
+                return _project_schedule(previous_data, symbol, currency, start, end, instrument)
+            return _dividend_unavailable(symbol, currency, start, end, 'PUBLIC_DIVIDEND_REFRESH_PENDING')
+        try:
+            return _project_schedule(future.result(), symbol, currency, start, end, instrument)
+        except Exception:
+            return _dividend_unavailable(symbol, currency, start, end, 'PUBLIC_DIVIDEND_SCHEDULE_UNAVAILABLE')
+
+    @synchronized(YFINANCE_LOCK)
+    def _fetch_daily_dividends(self, symbol, currency, now, instrument=None):
+        from toss_dividends import (
+            MAX_PAYMENT_LAG_DAYS,
+            check_instrument_identity,
+            estimated_coverage,
+            instrument_reference,
+            reference_missing,
+            schedule_from_responses,
+            validate_calendar,
+        )
+
+        zone = ZoneInfo('America/New_York' if currency == 'USD' else 'Asia/Seoul')
+        # With an ex+0 lower bound, today's incomplete history cannot even
+        # support estimated absence. Keep the last fully observed market date.
+        last = now.astimezone(zone).date() - timedelta(days=1)
+        first = last - timedelta(days=3 * 366)
+        lo = int(datetime.combine(first - timedelta(days=MAX_PAYMENT_LAG_DAYS + 2),
+                                  datetime.min.time(), timezone.utc).timestamp())
+        hi = int(now.timestamp())
+        try:
+            data = yf.Ticker(symbol)._data
+            bound = instrument_reference(symbol, instrument) if currency == 'KRW' else symbol
+            base = symbol.split('.')[0]
+            references = [bound] if bound else [base + '.KS', base + '.KQ']
+            candidates, failures = [], []
+            for reference in references:
+                endpoint = 'quoteSummary'
+                try:
+                    calendar = data.get_raw_json(f'https://query2.finance.yahoo.com/v10/finance/quoteSummary/{reference}',
+                        params={'modules': 'calendarEvents,price', 'formatted': 'false'}, timeout=5)
+                    if len(references) == 2 and reference_missing(calendar, reference, endpoint):
+                        continue
+                    if len(references) == 2:
+                        validate_calendar(calendar, reference, currency)
+                    endpoint = 'chart'
+                    chart = data.get_raw_json(f'https://query1.finance.yahoo.com/v8/finance/chart/{reference}',
+                        params={'period1': lo, 'period2': hi, 'interval': '1d', 'events': 'div'}, timeout=5)
+                    if len(references) == 2 and reference_missing(chart, reference, endpoint):
+                        continue
+                    result = schedule_from_responses(calendar, chart, symbol=reference, currency=currency,
+                        start=first.isoformat(), end=last.isoformat(), lo=lo, hi=hi, as_of=now)
+                    if not estimated_coverage(result['coverage'][0]):
+                        failures.append(result)
+                        continue
+                    if currency == 'KRW':
+                        price, meta = calendar['quoteSummary']['result'][0]['price'], chart['chart']['result'][0]['meta']
+                        if any(k in row and (not isinstance(row[k], str) or not row[k]) for row in (price, meta)
+                               for k in ('shortName', 'longName', 'name', 'isin', 'isinCode')):
+                            raise ValueError('INVALID_REFERENCE_IDENTITY')
+                        binding = {'reference_symbol': reference, 'basis': 'toss-stock-info-v1' if bound and instrument
+                            and instrument.get('market') else 'unique-validated-kr-schedule',
+                            'names': [v for row in (price, meta) for k in ('shortName', 'longName', 'name')
+                                      if isinstance((v := row.get(k)), str) and v],
+                            'isins': [v for row in (price, meta) for k in ('isin', 'isinCode')
+                                      if isinstance((v := row.get(k)), str) and v]}
+                        if binding['basis'] == 'toss-stock-info-v1':
+                            binding['toss_isin'] = instrument['isinCode']
+                        check_instrument_identity(binding, symbol, instrument)
+                        result['binding'] = binding
+                    candidates.append((reference, result))
+                except Exception as exc:
+                    response = getattr(exc, 'response', None)
+                    if len(references) == 2 and getattr(response, 'status_code', None) == 404:
+                        try:
+                            if reference_missing(response.json(), reference, endpoint):
+                                continue
+                        except (ValueError, TypeError, AttributeError):
+                            pass
+                    # An unavailable candidate is not proof that only the other
+                    # exchange exists; a dual probe with any outage stays unknown.
+                    return _dividend_unavailable(symbol, currency, first.isoformat(), last.isoformat(),
+                                                 'DIVIDEND_INSTRUMENT_UNRESOLVED')
+            if len(candidates) != 1 or failures:
+                # One answering reference (the other proven missing) keeps its specific reason.
+                if not candidates and len(failures) == 1:
+                    for proof in failures[0]['coverage']:
+                        proof.update(reference_symbol=proof['symbol'], symbol=symbol)
+                    return failures[0]
+                return _dividend_unavailable(symbol, currency, first.isoformat(), last.isoformat(),
+                                             'DIVIDEND_INSTRUMENT_UNRESOLVED')
+            reference, result = candidates[0]
+            if currency == 'KRW' and '.' in symbol and symbol != reference:
+                return _dividend_unavailable(symbol, currency, first.isoformat(), last.isoformat(),
+                                             'DIVIDEND_INSTRUMENT_MISMATCH')
+            for row in [*result['rows'], *result['coverage']]:
+                row.update(symbol=symbol, reference_symbol=reference)
+            return result
+        except Exception:
+            return _dividend_unavailable(symbol, currency, first.isoformat(), last.isoformat(),
+                                         'PUBLIC_DIVIDEND_SCHEDULE_UNAVAILABLE')
+
+    @synchronized(YFINANCE_LOCK)
     def get_financials(self, symbol: str) -> dict[str, Any]:
         """Get key financial data from yfinance.
 
@@ -198,6 +435,7 @@ class YFinanceClient:
 
         return result
 
+    @synchronized(YFINANCE_LOCK)
     def get_key_metrics(self, symbol: str) -> dict[str, Any]:
         """Get key financial metrics summary from yfinance info.
 
@@ -241,7 +479,7 @@ class YFinanceClient:
             "net_margin_pct": pct(info.get("profitMargins")),
             "roe_pct": pct(info.get("returnOnEquity")),
             "roa_pct": pct(info.get("returnOnAssets")),
-            "debt_to_equity_pct": pct(info.get("debtToEquity")),
+            "debt_to_equity_pct": percent_value(info.get("debtToEquity")),
             "period_type": "TTM/provider_latest",
             "current_ratio": _safe_float(info.get("currentRatio")),
             "quick_ratio": _safe_float(info.get("quickRatio")),
@@ -254,6 +492,7 @@ class YFinanceClient:
             result["null_reasons"] = null_reasons
         return result
 
+    @synchronized(YFINANCE_LOCK)
     def get_ohlcv(self, symbol: str, period: str = "1y") -> dict[str, Any]:
         """Get historical OHLCV data from yfinance.
 

@@ -4,22 +4,27 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "k-invest"
-version = "2.2.0"
-description = "Read-only personal investment data MCP server — Toss Securities, KIS, SEC EDGAR, yfinance, Binance USD-M Futures"
+version = "0.2.0"
+description = "Read-only MCP server for your own brokerage and crypto account data: Toss Securities and KIS Open APIs, SEC EDGAR, yfinance, Binance USD-M and Hyperliquid"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "AhnRyu" }]
-keywords = ["mcp", "toss-securities", "kis", "sec-edgar", "yfinance", "binance", "fastmcp"]
+authors = [{ name = "ianlyoo" }]
+keywords = ["mcp", "toss-securities", "kis", "sec-edgar", "yfinance", "binance", "hyperliquid", "fastmcp"]
 dependencies = [
   "mcp>=1.26,<2",
   "httpx>=0.28",
+  "cryptography>=50.0.2",
   "yfinance>=1.2",
   "uvicorn>=0.40",
+  "pypdf==6.19.0",
 ]
 
 [project.urls]
 Homepage = "https://github.com/ianlyoo/K-invest"
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio", "ruff", "exceptiongroup"]
 
 [project.scripts]
 k-invest = "server:main"
@@ -35,8 +40,43 @@ ignore = ["E501"]
 [tool.setuptools]
 py-modules = [
   "server",
+  "tool_help",
+  "response_shape",
+  "tools_v2",
+  "oauth_provider",
+  "oauth_registration",
+  "oauth_admin",
+  "owner_gate",
+  "oauth_store",
+  "service_auth",
+  "auth_observability",
+  "error_taxonomy",
+  "health_status",
+  "journal_metadata",
+  "instrument_identity",
+  "kis_accounts",
+  "kis_flow_inference",
+  "kis_nav_capture",
+  "portfolio_model",
+  "portfolio_sources",
+  "portfolio_engine",
+  "portfolio_store",
+  "daily_nav",
+  "toss_nav_validation",
+  "toss_flow_inference",
+  "toss_dividends",
+  "toss_dividend_cache",
+  "portfolio_ledger",
+  "ledger_flows",
+  "ledger_returns",
+  "interval_returns",
+  "owner_flows",
+  "portfolio_export",
+  "statement_import",
   "kinvest_common",
+  "provider_pacing",
   "toss_api",
+  "market_series",
   "toss_accounts",
   "kis_api",
   "sec_api",
@@ -49,5 +89,10 @@ py-modules = [
   "yfinance_metrics",
   "yfinance_consensus",
   "binance_futures_api",
-  "margin_ta_runner",
+  "crypto_futures_accounts",
+  "crypto_validation",
+  "crypto_nav_capture",
+  "crypto_flow_intervals",
+  "crypto_flow_evidence",
+  "futures_risk",
 ]

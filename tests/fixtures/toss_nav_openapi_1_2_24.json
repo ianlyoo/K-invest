@@ -1,0 +1,325 @@
+{
+  "/api/v1/holdings": {
+    "withHoldings": {
+      "result": {
+        "totalPurchaseAmount": {
+          "krw": "6500000",
+          "usd": "1553"
+        },
+        "marketValue": {
+          "amount": {
+            "krw": "7200000",
+            "usd": "1785"
+          },
+          "amountAfterCost": {
+            "krw": "7050000",
+            "usd": "1771.43"
+          }
+        },
+        "profitLoss": {
+          "amount": {
+            "krw": "700000",
+            "usd": "232"
+          },
+          "amountAfterCost": {
+            "krw": "550000",
+            "usd": "218.43"
+          },
+          "rate": "0.1179",
+          "rateAfterCost": "0.0983"
+        },
+        "dailyProfitLoss": {
+          "amount": {
+            "krw": "100000",
+            "usd": "25"
+          },
+          "rate": "0.0141"
+        },
+        "items": [
+          {
+            "symbol": "005930",
+            "name": "삼성전자",
+            "marketCountry": "KR",
+            "currency": "KRW",
+            "quantity": "100",
+            "lastPrice": "72000",
+            "averagePurchasePrice": "65000",
+            "marketValue": {
+              "purchaseAmount": "6500000",
+              "amount": "7200000",
+              "amountAfterCost": "7050000"
+            },
+            "profitLoss": {
+              "amount": "700000",
+              "amountAfterCost": "550000",
+              "rate": "0.1077",
+              "rateAfterCost": "0.0846"
+            },
+            "dailyProfitLoss": {
+              "amount": "100000",
+              "rate": "0.0141"
+            },
+            "cost": {
+              "commission": "14400",
+              "tax": "135600"
+            }
+          },
+          {
+            "symbol": "AAPL",
+            "name": "Apple Inc.",
+            "marketCountry": "US",
+            "currency": "USD",
+            "quantity": "10",
+            "lastPrice": "178.5",
+            "averagePurchasePrice": "155.3",
+            "marketValue": {
+              "purchaseAmount": "1553",
+              "amount": "1785",
+              "amountAfterCost": "1771.43"
+            },
+            "profitLoss": {
+              "amount": "232",
+              "amountAfterCost": "218.43",
+              "rate": "0.1494",
+              "rateAfterCost": "0.1406"
+            },
+            "dailyProfitLoss": {
+              "amount": "25",
+              "rate": "0.0142"
+            },
+            "cost": {
+              "commission": "3.57",
+              "tax": "10"
+            }
+          }
+        ]
+      }
+    },
+    "emptyHoldings": {
+      "result": {
+        "totalPurchaseAmount": {
+          "krw": "0",
+          "usd": null
+        },
+        "marketValue": {
+          "amount": {
+            "krw": "0",
+            "usd": null
+          },
+          "amountAfterCost": {
+            "krw": "0",
+            "usd": null
+          }
+        },
+        "profitLoss": {
+          "amount": {
+            "krw": "0",
+            "usd": null
+          },
+          "amountAfterCost": {
+            "krw": "0",
+            "usd": null
+          },
+          "rate": "0",
+          "rateAfterCost": "0"
+        },
+        "dailyProfitLoss": {
+          "amount": {
+            "krw": "0",
+            "usd": null
+          },
+          "rate": "0"
+        },
+        "items": []
+      }
+    }
+  },
+  "/api/v1/prices": {
+    "krStock": {
+      "result": [
+        {
+          "symbol": "005930",
+          "timestamp": "2026-03-25T09:30:00.123+09:00",
+          "lastPrice": "72000",
+          "currency": "KRW"
+        }
+      ]
+    },
+    "usStock": {
+      "result": [
+        {
+          "symbol": "AAPL",
+          "timestamp": "2026-03-25T22:30:00.456+09:00",
+          "lastPrice": "185.70",
+          "currency": "USD"
+        }
+      ]
+    }
+  },
+  "/api/v1/buying-power": {
+    "krw": {
+      "result": {
+        "currency": "KRW",
+        "cashBuyingPower": "5000000"
+      }
+    },
+    "usd": {
+      "result": {
+        "currency": "USD",
+        "cashBuyingPower": "3500.5"
+      }
+    }
+  },
+  "/api/v1/orders": {
+    "empty": {
+      "result": {
+        "orders": [],
+        "nextCursor": null,
+        "hasNext": false
+      }
+    }
+  },
+  "/api/v1/market-calendar/US": {
+    "businessDay": {
+      "result": {
+        "today": {
+          "date": "2026-03-25",
+          "dayMarket": {
+            "startTime": "2026-03-25T09:00:00+09:00",
+            "endTime": "2026-03-25T16:50:00+09:00"
+          },
+          "preMarket": {
+            "startTime": "2026-03-25T17:00:00+09:00",
+            "endTime": "2026-03-25T22:30:00+09:00"
+          },
+          "regularMarket": {
+            "startTime": "2026-03-25T22:30:00+09:00",
+            "endTime": "2026-03-26T05:00:00+09:00"
+          },
+          "afterMarket": {
+            "startTime": "2026-03-26T05:00:00+09:00",
+            "endTime": "2026-03-26T07:00:00+09:00"
+          }
+        },
+        "previousBusinessDay": {
+          "date": "2026-03-24",
+          "dayMarket": {
+            "startTime": "2026-03-24T09:00:00+09:00",
+            "endTime": "2026-03-24T16:50:00+09:00"
+          },
+          "preMarket": {
+            "startTime": "2026-03-24T17:00:00+09:00",
+            "endTime": "2026-03-24T22:30:00+09:00"
+          },
+          "regularMarket": {
+            "startTime": "2026-03-24T22:30:00+09:00",
+            "endTime": "2026-03-25T05:00:00+09:00"
+          },
+          "afterMarket": {
+            "startTime": "2026-03-25T05:00:00+09:00",
+            "endTime": "2026-03-25T07:00:00+09:00"
+          }
+        },
+        "nextBusinessDay": {
+          "date": "2026-03-26",
+          "dayMarket": {
+            "startTime": "2026-03-26T09:00:00+09:00",
+            "endTime": "2026-03-26T16:50:00+09:00"
+          },
+          "preMarket": {
+            "startTime": "2026-03-26T17:00:00+09:00",
+            "endTime": "2026-03-26T22:30:00+09:00"
+          },
+          "regularMarket": {
+            "startTime": "2026-03-26T22:30:00+09:00",
+            "endTime": "2026-03-27T05:00:00+09:00"
+          },
+          "afterMarket": {
+            "startTime": "2026-03-27T05:00:00+09:00",
+            "endTime": "2026-03-27T07:00:00+09:00"
+          }
+        }
+      }
+    }
+  },
+  "/api/v1/market-calendar/KR": {
+    "businessDay": {
+      "result": {
+        "today": {
+          "date": "2026-03-25",
+          "integrated": {
+            "preMarket": {
+              "startTime": "2026-03-25T08:00:00+09:00",
+              "singlePriceAuctionStartTime": "2026-03-25T08:50:00+09:00",
+              "endTime": "2026-03-25T09:00:00+09:00"
+            },
+            "regularMarket": {
+              "startTime": "2026-03-25T09:00:00+09:00",
+              "singlePriceAuctionStartTime": "2026-03-25T15:20:00+09:00",
+              "endTime": "2026-03-25T15:30:00+09:00"
+            },
+            "afterMarket": {
+              "startTime": "2026-03-25T15:30:00+09:00",
+              "singlePriceAuctionEndTime": "2026-03-25T15:40:00+09:00",
+              "endTime": "2026-03-25T20:00:00+09:00"
+            }
+          }
+        },
+        "previousBusinessDay": {
+          "date": "2026-03-24",
+          "integrated": {
+            "preMarket": {
+              "startTime": "2026-03-24T08:00:00+09:00",
+              "singlePriceAuctionStartTime": "2026-03-24T08:50:00+09:00",
+              "endTime": "2026-03-24T09:00:00+09:00"
+            },
+            "regularMarket": {
+              "startTime": "2026-03-24T09:00:00+09:00",
+              "singlePriceAuctionStartTime": "2026-03-24T15:20:00+09:00",
+              "endTime": "2026-03-24T15:30:00+09:00"
+            },
+            "afterMarket": {
+              "startTime": "2026-03-24T15:30:00+09:00",
+              "singlePriceAuctionEndTime": "2026-03-24T15:40:00+09:00",
+              "endTime": "2026-03-24T20:00:00+09:00"
+            }
+          }
+        },
+        "nextBusinessDay": {
+          "date": "2026-03-26",
+          "integrated": {
+            "preMarket": {
+              "startTime": "2026-03-26T08:00:00+09:00",
+              "singlePriceAuctionStartTime": "2026-03-26T08:50:00+09:00",
+              "endTime": "2026-03-26T09:00:00+09:00"
+            },
+            "regularMarket": {
+              "startTime": "2026-03-26T09:00:00+09:00",
+              "singlePriceAuctionStartTime": "2026-03-26T15:20:00+09:00",
+              "endTime": "2026-03-26T15:30:00+09:00"
+            },
+            "afterMarket": {
+              "startTime": "2026-03-26T15:30:00+09:00",
+              "singlePriceAuctionEndTime": "2026-03-26T15:40:00+09:00",
+              "endTime": "2026-03-26T20:00:00+09:00"
+            }
+          }
+        }
+      }
+    }
+  },
+  "/api/v1/exchange-rate": {
+    "usdToKrwUp": {
+      "result": {
+        "baseCurrency": "USD",
+        "quoteCurrency": "KRW",
+        "rate": "1380.5",
+        "midRate": "1375",
+        "basisPoint": "40",
+        "rateChangeType": "UP",
+        "validFrom": "2026-03-25T09:30:00+09:00",
+        "validUntil": "2026-03-25T09:31:00+09:00"
+      }
+    }
+  }
+}

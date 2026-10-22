@@ -1,0 +1,22 @@
+[Unit]
+Description=K-invest permanent ledger collection
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=youruser
+Group=youruser
+WorkingDirectory=/home/youruser/K-invest
+EnvironmentFile=/etc/k-invest.env
+Environment=KINVEST_CACHE_DIR=/var/cache/k-invest
+ExecStart=/usr/bin/python3 /home/youruser/K-invest/scripts/collect_ledger.py
+UMask=0077
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=k-invest-ledger
+CacheDirectory=k-invest
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only

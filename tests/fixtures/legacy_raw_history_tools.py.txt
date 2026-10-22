@@ -1,0 +1,107 @@
+# Pinned verbatim tool bodies from cbbb6bf:server.py; decorators excluded.
+def get_toss_trade_history(limit: int = 50, account: str = "primary") -> dict[str, Any]:
+    """Get recent trade history (filled orders) from Toss Securities (READ-ONLY).
+
+    Args:
+        limit: Maximum number of trades to retrieve (default 50)
+
+    Returns:
+        Structured JSON envelope with recent filled orders.
+    """
+    try:
+        registry = _get_toss_registry()
+        labels = registry.account_labels() if account == "all" else [account or "primary"]
+        results, sources = [], []
+        for label in labels:
+            source = f"toss:{label}:history"
+            try:
+                client = registry.client_for(label)
+                rows = client.get_trade_history(limit=limit)
+                annotated = annotate_rows(rows, "toss", getattr(client, "journal_account_key", f"toss:{label}"))
+                truncated = getattr(rows, "truncated", len(rows) >= limit)
+                metadata = source_metadata(source, len(rows), complete=not truncated, truncated=truncated,
+                    reason=getattr(rows, "truncation_reason", "row_limit" if truncated else None))
+                results.append({"account": label, "data": annotated, "error": None})
+            except Exception as exc:
+                error = _format_error(exc)["error"]
+                metadata = source_metadata(source, None, complete=False, error_code=error["kind"])
+                results.append({"account": label, "data": None, "error": error})
+            sources.append(metadata)
+            _health_status.record(source, status=metadata["status"], count=metadata["result_count"],
+                complete=metadata["complete"], error_code=metadata["error_code"], truncated=metadata["truncated"])
+        data = {"accounts": results} if account == "all" else results[0]["data"]
+        if account != "all" and results[0]["error"]:
+            return {"ok": False, "data": None, "error": results[0]["error"], "meta": {"sources": sources, "complete": False}}
+        return _ok(data, provider="toss", account=account, sources=sources,
+                   complete=bool(sources) and all(x["complete"] is True for x in sources))
+    except Exception as e:
+        return _format_error(e)
+
+def get_kis_trade_history(start_date: str = "", end_date: str = "", account: str = "") -> dict[str, Any]:
+    """Get trade history (execution records) from KIS (READ-ONLY).
+
+    Fetches both domestic and overseas trade history.
+
+    Args:
+        start_date: Start date in YYYYMMDD format (default: 30 days ago)
+        end_date: End date in YYYYMMDD format (default: today)
+        account: Account label from get_kis_accounts(). Empty uses the default
+            account; "all" queries every configured account.
+
+    Returns:
+        Structured JSON envelope with domestic and overseas trade records.
+    """
+    try:
+        if not end_date:
+            end_date = datetime.now().strftime("%Y%m%d")
+        if not start_date:
+            start_date = (datetime.now() - timedelta(days=30)).strftime("%Y%m%d")
+        start, end = datetime.strptime(start_date, "%Y%m%d"), datetime.strptime(end_date, "%Y%m%d")
+        if start > end:
+            raise ValueError("Date range reversed")
+        registry = _get_kis_registry()
+        labels = registry.account_labels() if account == "all" else [account or registry.default_label()]
+        results, sources = [], []
+        for label in labels:
+            try:
+                client = registry.client_for(label)
+            except Exception as exc:
+                error = _format_error(exc)["error"]
+                for market in ["domestic", "overseas"]:
+                    sources.append(source_metadata(f"kis:{label}:{market}:history", None, complete=False,
+                        error_code=error["kind"], start=start_date, end=end_date))
+                results.append({"account": label, "data": None, "error": error})
+                continue
+            payload = {}
+            for market, method in [("domestic", client.get_domestic_trade_history), ("overseas", client.get_overseas_trade_history)]:
+                source = f"kis:{label}:{market}:history"
+                if market == "overseas" and not client.supports_overseas:
+                    payload[market] = dict(_OVERSEAS_UNSUPPORTED)
+                    sources.append(source_metadata(source, None, complete=None, supported=False, start=start_date, end=end_date))
+                    continue
+                try:
+                    value = dict(method(start_date, end_date))
+                    value["trades"] = annotate_rows(value.get("trades", []), "kis",
+                        getattr(client, "journal_account_key", f"kis:{label}"), "KR" if market == "domestic" else "")
+                    truncated = bool(value.get("truncated"))
+                    metadata = source_metadata(source, len(value["trades"]), complete=not truncated, truncated=truncated,
+                        start=start_date, end=end_date, reason="page_limit" if truncated else None)
+                    value["source_metadata"] = metadata
+                    payload[market] = value
+                except Exception as exc:
+                    error = _format_error(exc)["error"]
+                    metadata = source_metadata(source, None, complete=False, error_code=error["kind"], start=start_date, end=end_date)
+                    payload[market] = {"trades": None, "error": error, "source_metadata": metadata}
+                sources.append(metadata)
+                _health_status.record(source, status=metadata["status"], count=metadata["result_count"],
+                    complete=metadata["complete"], error_code=metadata["error_code"], truncated=metadata["truncated"])
+            results.append({"account": label, "data": payload, "error": None})
+        data = {"accounts": results} if account == "all" else results[0]["data"]
+        applicable = [x for x in sources if x["supported"]]
+        if account != "all" and results[0]["error"]:
+            return {"ok": False, "data": None, "error": results[0]["error"],
+                    "meta": {"provider": "kis", "sources": sources, "complete": False}}
+        return _ok(data, provider="kis", account=account or registry.default_label(), sources=sources,
+                   complete=bool(applicable) and all(x["complete"] is True for x in applicable))
+    except Exception as e:
+        return _format_error(e)

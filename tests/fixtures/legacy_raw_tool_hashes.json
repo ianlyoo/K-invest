@@ -1,0 +1,10 @@
+{
+  "get_candles": "1d1e27e05ce1c844ab5caa047651350f1cd931df94afd68b2288e3f47a0071b9",
+  "get_kis_accounts": "4191d2567e72e3f195f8d1f7fd83672617407e77fab0ca267f0a485be30ff44d",
+  "get_kis_domestic_balance": "6a21f58d3c019abf2dab50bfd14d87e38b970dce3dc82851e9d9548eb329d742",
+  "get_kis_overseas_balance": "4d66118a7a9449779a953fae7247b7e0bb0237c5b4526cdc1c369aceb7ee137d",
+  "get_kis_trade_history": "c84060147cb2e4972218fa1966e4d772f2f6bf8c4990479cbc41c513a1a87abe",
+  "get_toss_accounts": "5a4b0eac6724a704d9e34655bcc370963cf08b09a60247aa84fb271773e81996",
+  "get_toss_holdings": "4db5db58d1cce3bd9ba6ff6f2adae8658884f98b7e56575de31c71fbb9392e01",
+  "get_toss_trade_history": "e1efc78745b0a2f545706d5f7288872bc0311e145acd7f207424423c8912a4e8"
+}

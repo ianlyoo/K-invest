@@ -1,0 +1,6 @@
+source: https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/overseas-stock/v1/trading/inquire-period-trans
+data: https://apiportal.koreainvestment.com/api/apis/public/detail?accessUrl=/uapi/overseas-stock/v1/trading/inquire-period-trans (field resAuth, verbatim)
+api: 해외주식 일별거래내역 [해외주식-063] real_tr_id=CTOS4001R virtual_tr_id=모의투자 미지원
+portal lastModifiedDate: 2025-04-30T10:52:39+09:00
+retrieved: 2026-10-17 KST
+validity: valid JSON

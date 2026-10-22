@@ -1,0 +1,9 @@
+{
+  "_provenance": "hand_built_from_field_list",
+  "rt_cd": "0",
+  "msg_cd": "KIOK0000",
+  "msg1": "조회가 완료되었습니다",
+  "output": {"tr_crcy_cd": "USD", "ord_psbl_frcr_amt": "500.00", "sll_ruse_psbl_amt": "0.00", "ovrs_ord_psbl_amt": "500.00",
+             "max_ord_psbl_qty": "2", "echm_af_ord_psbl_amt": "0", "echm_af_ord_psbl_qty": "0", "ord_psbl_qty": "2",
+             "exrt": "1400.00", "frcr_ord_psbl_amt1": "500.00", "ovrs_max_ord_psbl_qty": "2"}
+}

@@ -1,0 +1,42 @@
+{
+  "version": "product_map_2026-10-22",
+  "products": {
+    "US:ACMU": {"kind": "leveraged_etf", "underlying": "US:ACME", "leverage_target": 2, "reset": "daily",
+                "name": "Synthetic 2X Long ACME Daily ETF", "issuer": "Synthetic Issuer",
+                "source": {"url": "https://issuer.example/acmu", "date": "2026-10-22",
+                           "evidence": "synthetic: 200% of the daily performance of ACME"}},
+    "US:KOR3": {"kind": "leveraged_etf", "underlying": "index:SYN_KOREA", "leverage_target": 3, "reset": "daily",
+                "name": "Synthetic Korea Bull 3X ETF", "issuer": "Synthetic Issuer",
+                "source": {"url": "https://issuer.example/kor3", "date": "2026-06-30",
+                           "evidence": "synthetic: 300% of the daily performance of the synthetic Korea index"}},
+    "US:MEM2": {"kind": "leveraged_etf", "underlying": "US:MEMF", "leverage_target": 2, "reset": "daily",
+                "name": "Synthetic 2X Long MEMF Daily ETF", "issuer": "Synthetic Issuer",
+                "source": {"url": "https://issuer.example/mem2", "date": "2026-10-22",
+                           "evidence": "synthetic: 200% of the daily performance of MEMF"}},
+    "US:MEMF": {"kind": "fund", "underlying": "US:MEMF", "leverage_target": 1, "reset": null,
+                "name": "Synthetic Memory Fund", "issuer": "Synthetic Issuer",
+                "source": {"url": "https://issuer.example/memf", "date": "2026-09-30",
+                           "evidence": "synthetic: actively managed basket, kept as its own underlying"}},
+    "KR:900200": {"kind": "leveraged_etf", "underlying": "index:SYN_SEMI", "leverage_target": 2, "reset": "daily",
+                  "name": "합성 반도체레버리지", "issuer": "합성자산운용",
+                  "source": {"url": "https://issuer.example/kr/900200", "date": "2026-05-15",
+                             "evidence": "synthetic: 합성 반도체 지수의 일간 수익률 2배"}},
+    "KR:9001A0": {"kind": "leveraged_etf", "underlying": "KR:900100", "leverage_target": 2, "reset": "daily",
+                  "name": "합성전자단일종목레버리지 A", "issuer": "합성자산운용",
+                  "source": {"url": "https://issuer.example/kr/9001A0", "date": "2026-10-20",
+                             "evidence": "synthetic: single-stock 2x on 합성전자"}},
+    "KR:9001B0": {"kind": "leveraged_etf", "underlying": "KR:900100", "leverage_target": 2, "reset": "daily",
+                  "name": "합성전자단일종목레버리지 B", "issuer": "합성투자운용",
+                  "source": {"url": "https://issuer.example/kr/9001B0", "date": "2026-10-20",
+                             "evidence": "synthetic: single-stock 2x on 합성전자"}}
+  },
+  "common_stocks": {"US:ACME": "Acme Corp", "KR:900100": "합성전자"},
+  "common_stocks_date": "2026-10-22",
+  "perps": {
+    "hyperliquid:xyz:ACME": {"kind": "equity_perp", "underlying": "US:ACME", "name": "XYZ ACME/USD perpetual",
+                             "source": {"url": "https://venue.example/specifications", "date": "2026-10-22",
+                                        "evidence": "synthetic: references 1 share of Acme Corp, quoted in USD"}}
+  },
+  "underlying_names": {"index:SYN_KOREA": "Synthetic Korea Index", "index:SYN_SEMI": "합성 반도체 지수",
+                       "US:MEMF": "Synthetic Memory Fund (basket, not looked through)"}
+}

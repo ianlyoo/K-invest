@@ -1,0 +1,208 @@
+{
+  "all_excluded": {
+    "sha256": "a287c25590848473f0e9a87006dc120b6d2371807c110e2808279c3c7aa5b4a4",
+    "win_rates": [
+      {
+        "currency": null,
+        "denominator": 0,
+        "symbol": null,
+        "value": null
+      },
+      {
+        "currency": "USD",
+        "denominator": 0,
+        "symbol": "BROKEN",
+        "value": null
+      }
+    ]
+  },
+  "break_and_tax": {
+    "sha256": "5a163f731f8ba1ff1bd4f845a137785ba26b4e44c19860c0c87b9d4429665051",
+    "win_rates": [
+      {
+        "currency": null,
+        "denominator": 1,
+        "symbol": null,
+        "value": 1.0
+      },
+      {
+        "currency": "USD",
+        "denominator": 0,
+        "symbol": "BROKEN",
+        "value": null
+      },
+      {
+        "currency": "USD",
+        "denominator": 1,
+        "symbol": "CLEAN",
+        "value": 1.0
+      }
+    ]
+  },
+  "empty": {
+    "sha256": "8125ebfcaa707c0c3e7380d32c746a1688228609916ef81887ea6022192f793c",
+    "win_rates": [
+      {
+        "currency": null,
+        "denominator": 0,
+        "symbol": null,
+        "value": null
+      }
+    ]
+  },
+  "failed": {
+    "sha256": "bd45811378004b81a06f694da6299d94a40605b0db7f5f48150c9da14cd66d82",
+    "win_rates": [
+      {
+        "currency": null,
+        "denominator": 1,
+        "symbol": null,
+        "value": null
+      },
+      {
+        "currency": "USD",
+        "denominator": 0,
+        "symbol": "BROKEN",
+        "value": null
+      },
+      {
+        "currency": "USD",
+        "denominator": 1,
+        "symbol": "CLEAN",
+        "value": null
+      }
+    ]
+  },
+  "lowercase_holding": {
+    "sha256": "f0529b937799247a7963c5c414f79158f246c7d6bf9ed53e4ae48b9a6a7a9890",
+    "win_rates": [
+      {
+        "currency": null,
+        "denominator": 1,
+        "symbol": null,
+        "value": 1.0
+      },
+      {
+        "currency": "USD",
+        "denominator": 1,
+        "symbol": "SAME",
+        "value": 1.0
+      }
+    ]
+  },
+  "missing_fx": {
+    "sha256": "8c3ca6fd3b17bdc5f582cd28cd7b80ccd39a1be0f84e9f22de8da1d44484eeaa",
+    "win_rates": [
+      {
+        "currency": null,
+        "denominator": 1,
+        "symbol": null,
+        "value": 1.0
+      },
+      {
+        "currency": "USD",
+        "denominator": 1,
+        "symbol": "CLEAN",
+        "value": 1.0
+      },
+      {
+        "currency": "USD",
+        "denominator": 0,
+        "symbol": "OVERLAP",
+        "value": null
+      },
+      {
+        "currency": "USD",
+        "denominator": 0,
+        "symbol": "TAXONLY",
+        "value": null
+      }
+    ]
+  },
+  "mixed": {
+    "sha256": "c4cc002233f5169816f58ade9a699dd47b5007a38e8c49ed15e466e2f0ec1619",
+    "win_rates": [
+      {
+        "currency": null,
+        "denominator": 1,
+        "symbol": null,
+        "value": 1.0
+      },
+      {
+        "currency": "USD",
+        "denominator": 0,
+        "symbol": "BROKEN",
+        "value": null
+      },
+      {
+        "currency": "USD",
+        "denominator": 1,
+        "symbol": "CLEAN",
+        "value": 1.0
+      }
+    ]
+  },
+  "no_breaks": {
+    "sha256": "e131b8ae86342a25d02deb6aaf381f4d96473e0fd80ad38556d700a4af89342c",
+    "win_rates": [
+      {
+        "currency": null,
+        "denominator": 1,
+        "symbol": null,
+        "value": 1.0
+      },
+      {
+        "currency": "USD",
+        "denominator": 1,
+        "symbol": "CLEAN",
+        "value": 1.0
+      }
+    ]
+  },
+  "one_account_break": {
+    "sha256": "56fc34e29e5d997629428975c6f0740fca8e6ad3359bac92fae643a18a3ac866",
+    "win_rates": [
+      {
+        "currency": null,
+        "denominator": 1,
+        "symbol": null,
+        "value": 1.0
+      },
+      {
+        "currency": "USD",
+        "denominator": 1,
+        "symbol": "SAME",
+        "value": 1.0
+      }
+    ]
+  },
+  "unknown_costs": {
+    "sha256": "234041e13411febf1db44eec6885a991f2a1ad563b765969239fc21b74c10561",
+    "win_rates": [
+      {
+        "currency": null,
+        "denominator": 1,
+        "symbol": null,
+        "value": 1.0
+      },
+      {
+        "currency": "USD",
+        "denominator": 1,
+        "symbol": "CLEAN",
+        "value": 1.0
+      },
+      {
+        "currency": "USD",
+        "denominator": 0,
+        "symbol": "OVERLAP",
+        "value": null
+      },
+      {
+        "currency": "USD",
+        "denominator": 0,
+        "symbol": "TAXONLY",
+        "value": null
+      }
+    ]
+  }
+}

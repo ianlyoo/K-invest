@@ -1,0 +1,5 @@
+provenance: hand_built_from_field_list
+reason: KIS publishes no example for TTTS3039R.
+fields: KIS portal resAuth field list for /uapi/overseas-stock/v1/trading/inquire-period-profit; the portal documents the capitalised keys Output1 (array) and Output2 (object).
+values: synthetic.
+built: 2026-10-17 KST

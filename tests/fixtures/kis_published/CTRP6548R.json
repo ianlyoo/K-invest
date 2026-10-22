@@ -1,0 +1,186 @@
+{
+    "output1": [
+        {
+            "pchs_amt": "129105",
+            "evlu_amt": "406000",
+            "evlu_pfls_amt": "276895",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "406000",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "0",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "0",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "0",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "0",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "0",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "0",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "0",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "0",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "0",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "0",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "0",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "0",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "161026228",
+            "evlu_amt": "185144504",
+            "evlu_pfls_amt": "24118276",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "185144504",
+            "whol_weit_rt": "0.01000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "0",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "0",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "0",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "0",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "0",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "0",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "0",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "0",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "0",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "0",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "0",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "0",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "0",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "0",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "1651434483743",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "1651434483743",
+            "whol_weit_rt": "99.97000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "249855300",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "249855300",
+            "whol_weit_rt": "0.01000000"
+        },
+        {
+            "pchs_amt": "0",
+            "evlu_amt": "0",
+            "evlu_pfls_amt": "0",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "0",
+            "whol_weit_rt": "0.00000000"
+        },
+        {
+            "pchs_amt": "161155333",
+            "evlu_amt": "1651869889547",
+            "evlu_pfls_amt": "24395171",
+            "crdt_lnd_amt": "0",
+            "real_nass_amt": "1651869889547",
+            "whol_weit_rt": "100.00000000"
+        }
+    ],
+    "output2": {
+        "pchs_amt_smtl": "161155333",
+        "nass_tot_amt": "185550504",
+        "loan_amt_smtl": "0",
+        "evlu_pfls_amt_smtl": "24395171",
+        "evlu_amt_smtl": "185550504",
+        "tot_asst_amt": "1651869889547",
+        "tot_lnda_tot_ulst_lnda": "0",
+        "cma_auto_loan_amt": "0",
+        "tot_mgln_amt": "0",
+        "stln_evlu_amt": "0",
+        "crdt_fncg_amt": "0",
+        "ocl_apl_loan_amt": "0",
+        "pldg_stup_amt": "0",
+        "frcr_evlu_tota": "1651434483743",
+        "tot_dncl_amt": "249855300",
+        "cma_evlu_amt": "0",
+        "dncl_amt": "249855300",
+        "tot_sbst_amt": "0",
+        "thdt_rcvb_amt": "0",
+        "ovrs_stck_evlu_amt1": "185144504.000000",
+        "ovrs_bond_evlu_amt": "0.000000",
+        "mmf_cma_mgge_loan_amt": "0",
+        "sbsc_dncl_amt": "0",
+        "pbst_sbsc_fnds_loan_use_amt": "0",
+        "etpr_crdt_grnt_loan_amt": "0"
+    },
+    "rt_cd": "0",
+    "msg_cd": "KIOK0530",
+    "msg1": "조회되었습니다                                                                  "
+}

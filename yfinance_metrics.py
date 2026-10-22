@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from error_taxonomy import classify_error
+from kinvest_common import NotConfiguredError
+
 
 def _safe_float(value: Any) -> float | None:
     if value is None:
@@ -19,12 +22,17 @@ def _safe_float(value: Any) -> float | None:
 
 
 def pct(value: Any) -> float | None:
+    """yfinance.info margins and returns are fractions, even above 1 (ROE 1.17 = 117%)."""
     number = _safe_float(value)
     if number is None:
         return None
-    if abs(number) <= 1:
-        return round(number * 100, 4)
-    return round(number, 4)
+    return round(number * 100, 4)
+
+
+def percent_value(value: Any) -> float | None:
+    """yfinance.info debtToEquity is already a percent (12.95 = 12.95%)."""
+    number = _safe_float(value)
+    return None if number is None else round(number, 4)
 
 
 def growth_pct(value: Any) -> float | None:
@@ -57,11 +65,10 @@ def dividend_yield_pct(info: dict[str, Any]) -> tuple[float | None, dict[str, An
     elif trailing_rate is not None and trailing_rate > 0 and price is not None:
         value = trailing_rate / price * 100
         source = "trailingAnnualDividendRate/currentPrice"
-    elif raw_yield is not None:
-        value = raw_yield * 100 if abs(raw_yield) <= 0.05 else raw_yield
-        source = "dividendYield"
     elif trailing_raw_yield is not None:
-        value = trailing_raw_yield * 100 if abs(trailing_raw_yield) <= 1 else trailing_raw_yield
+        # Always a fraction. dividendYield is not used: it is a percent from Yahoo's quote
+        # endpoint but a fraction from quoteSummary, which yfinance falls back to.
+        value = trailing_raw_yield * 100
         source = "trailingAnnualDividendYield"
 
     if value is None:
@@ -70,7 +77,8 @@ def dividend_yield_pct(info: dict[str, Any]) -> tuple[float | None, dict[str, An
             "raw_dividend_yield": raw_yield,
             "dividend_rate": dividend_rate,
             "price": price,
-            "note": "No usable dividend yield or dividend rate in yfinance info.",
+            "note": ("dividendYield alone is unit-ambiguous (percent or fraction by Yahoo endpoint); no rate or trailing yield."
+                     if raw_yield is not None else "No usable dividend yield or dividend rate in yfinance info."),
         }
 
     rounded = round(value, 4)
@@ -122,6 +130,8 @@ def _annual_sec_growth(symbol: str) -> dict[str, Any] | None:
         from sec_api import SECClient
 
         annuals = SECClient().get_financials(symbol).get("annuals", [])
+    except NotConfiguredError as exc:
+        return {"growth_meta_sec_annual": {"source": "SEC CompanyFacts", "error": classify_error(exc)}}
     except Exception:
         return None
     if len(annuals) < 2:

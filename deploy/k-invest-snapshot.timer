@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the K-invest portfolio NAV snapshot every evening
+
+[Timer]
+# Every calendar day, including weekends. Balance observation is not quote time.
+OnCalendar=*-*-* 18:10:00 Asia/Seoul
+Persistent=true
+RandomizedDelaySec=0
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,6 @@
+source: https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/overseas-stock/v1/trading/inquire-present-balance
+data: https://apiportal.koreainvestment.com/api/apis/public/detail?accessUrl=/uapi/overseas-stock/v1/trading/inquire-present-balance (field resAuth, verbatim)
+api: 해외주식 체결기준현재잔고[v1_해외주식-008] real_tr_id=CTRP6504R virtual_tr_id=VTRP6504R
+portal lastModifiedDate: 2025-04-30T10:49:29+09:00
+retrieved: 2026-10-17 KST
+validity: NOT strict JSON (JSONDecodeError: Unterminated string starting at: line 187 column 7 (char 6169))

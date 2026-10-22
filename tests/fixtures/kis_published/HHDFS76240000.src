@@ -1,0 +1,6 @@
+source: https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/overseas-price/v1/quotations/dailyprice
+data: https://apiportal.koreainvestment.com/api/apis/public/detail?accessUrl=/uapi/overseas-price/v1/quotations/dailyprice (field resAuth, verbatim)
+api: 해외주식 기간별시세[v1_해외주식-010] real_tr_id=HHDFS76240000 virtual_tr_id=HHDFS76240000
+portal lastModifiedDate: 2026-03-30T11:39:52+09:00
+retrieved: 2026-10-17 KST
+validity: valid JSON

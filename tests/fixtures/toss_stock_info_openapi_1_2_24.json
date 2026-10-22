@@ -1,0 +1,128 @@
+{
+  "source": "https://openapi.tossinvest.com/openapi-docs/latest/openapi.json",
+  "accessed": "2026-10-13",
+  "examples": {
+    "multiple": {
+      "summary": "다건 조회 (국내 + 미국)",
+      "value": {
+        "result": [
+          {
+            "symbol": "005930",
+            "name": "삼성전자",
+            "englishName": "SamsungElec",
+            "isinCode": "KR7005930003",
+            "market": "KOSPI",
+            "securityType": "STOCK",
+            "isCommonShare": true,
+            "status": "ACTIVE",
+            "currency": "KRW",
+            "listDate": "1975-06-11",
+            "delistDate": null,
+            "sharesOutstanding": "5919637922",
+            "leverageFactor": null,
+            "koreanMarketDetail": {
+              "liquidationTrading": false,
+              "nxtSupported": true,
+              "krxTradingSuspended": false,
+              "nxtTradingSuspended": false
+            }
+          },
+          {
+            "symbol": "AAPL",
+            "name": "애플",
+            "englishName": "APPLE INC",
+            "isinCode": "US0378331005",
+            "market": "NASDAQ",
+            "securityType": "STOCK",
+            "isCommonShare": true,
+            "status": "ACTIVE",
+            "currency": "USD",
+            "listDate": "1980-12-12",
+            "delistDate": null,
+            "sharesOutstanding": "14702703000",
+            "leverageFactor": null,
+            "koreanMarketDetail": null
+          }
+        ]
+      }
+    },
+    "krxStock": {
+      "summary": "국내 주식 (삼성전자)",
+      "value": {
+        "result": [
+          {
+            "symbol": "005930",
+            "name": "삼성전자",
+            "englishName": "SamsungElec",
+            "isinCode": "KR7005930003",
+            "market": "KOSPI",
+            "securityType": "STOCK",
+            "isCommonShare": true,
+            "status": "ACTIVE",
+            "currency": "KRW",
+            "listDate": "1975-06-11",
+            "delistDate": null,
+            "sharesOutstanding": "5919637922",
+            "leverageFactor": null,
+            "koreanMarketDetail": {
+              "liquidationTrading": false,
+              "nxtSupported": true,
+              "krxTradingSuspended": false,
+              "nxtTradingSuspended": false
+            }
+          }
+        ]
+      }
+    },
+    "usStock": {
+      "summary": "미국 주식 (Apple)",
+      "value": {
+        "result": [
+          {
+            "symbol": "AAPL",
+            "name": "애플",
+            "englishName": "APPLE INC",
+            "isinCode": "US0378331005",
+            "market": "NASDAQ",
+            "securityType": "STOCK",
+            "isCommonShare": true,
+            "status": "ACTIVE",
+            "currency": "USD",
+            "listDate": "1980-12-12",
+            "delistDate": null,
+            "sharesOutstanding": "14702703000",
+            "leverageFactor": null,
+            "koreanMarketDetail": null
+          }
+        ]
+      }
+    },
+    "etf": {
+      "summary": "ETF (KODEX 200)",
+      "value": {
+        "result": [
+          {
+            "symbol": "069500",
+            "name": "KODEX 200",
+            "isinCode": "KR7069500007",
+            "market": "KOSPI",
+            "securityType": "ETF",
+            "isCommonShare": true,
+            "status": "ACTIVE",
+            "currency": "KRW",
+            "listDate": "2002-10-14",
+            "delistDate": null,
+            "sharesOutstanding": "208050000",
+            "leverageFactor": "1",
+            "koreanMarketDetail": {
+              "liquidationTrading": false,
+              "nxtSupported": false,
+              "krxTradingSuspended": false,
+              "nxtTradingSuspended": null
+            }
+          }
+        ]
+      }
+    }
+  }
+}

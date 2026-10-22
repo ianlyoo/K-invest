@@ -1,0 +1,6 @@
+source: https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/overseas-stock/v1/trading/inquire-ccnl
+data: https://apiportal.koreainvestment.com/api/apis/public/detail?accessUrl=/uapi/overseas-stock/v1/trading/inquire-ccnl (field resAuth, verbatim)
+api: 해외주식 주문체결내역[v1_해외주식-007] real_tr_id=TTTS3035R virtual_tr_id=VTTS3035R
+portal lastModifiedDate: 2026-06-11T15:53:57+09:00
+retrieved: 2026-10-17 KST
+validity: valid JSON

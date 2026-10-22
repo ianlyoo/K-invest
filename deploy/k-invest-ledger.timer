@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily permanent ledger collection including weekends
+
+[Timer]
+# Explicit timezone.
+OnCalendar=*-*-* 04:10:00 Asia/Seoul
+Persistent=true
+RandomizedDelaySec=300
+Unit=k-invest-ledger.service
+
+[Install]
+WantedBy=timers.target

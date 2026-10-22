@@ -1,0 +1,26 @@
+[Unit]
+Description=K-invest prospective futures risk snapshot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=youruser
+Group=youruser
+WorkingDirectory=/home/youruser/K-invest
+EnvironmentFile=/etc/k-invest.env
+Environment=KINVEST_CACHE_DIR=/var/cache/k-invest
+# Supply the same existing read-only client configuration as the MCP service.
+# If using LoadCredential, provision the existing binance-futures-api-key and
+# binance-futures-signing-key sources for this unit separately; no keys in argv.
+ExecStart=/usr/bin/python3 /home/youruser/K-invest/scripts/snapshot_futures_risk.py
+TimeoutStartSec=600
+UMask=0077
+CacheDirectory=k-invest
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=k-invest-risk
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only

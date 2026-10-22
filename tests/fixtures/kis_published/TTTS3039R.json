@@ -1,0 +1,17 @@
+{
+  "_provenance": "hand_built_from_field_list",
+  "ctx_area_fk200": "",
+  "ctx_area_nk200": "",
+  "rt_cd": "0",
+  "msg_cd": "KIOK0000",
+  "msg1": "조회가 완료되었습니다",
+  "Output1": [
+    {"trad_day": "20261015", "ovrs_pdno": "AAPL", "ovrs_item_name": "SYNTHETIC-US", "slcl_qty": "2", "pchs_avg_pric": "200.0000",
+     "frcr_pchs_amt1": "400.00", "avg_sll_unpr": "230.0000", "frcr_sll_amt_smtl1": "460.00", "stck_sll_tlex": "0.12",
+     "ovrs_rlzt_pfls_amt": "59.88", "pftrt": "14.97", "exrt": "1400.00", "ovrs_excg_cd": "NASD", "frst_bltn_exrt": "1400.00"}
+  ],
+  "Output2": {
+    "stck_sll_amt_smtl": "460.00", "stck_buy_amt_smtl": "400.00", "smtl_fee1": "0.12", "excc_dfrm_amt": "459.88",
+    "ovrs_rlzt_pfls_tot_amt": "59.88", "tot_pftrt": "14.97", "bass_dt": "20261016", "exrt": "1400.00"
+  }
+}

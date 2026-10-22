@@ -51,3 +51,22 @@ def test_not_configured_error_carries_provider() -> None:
     assert err.provider == "kis"
     assert isinstance(err, RuntimeError)
     assert "KIS not configured" in str(err)
+
+
+def test_local_calendar_date_preserves_unknown_and_date_only_observations(monkeypatch):
+    import time
+
+    from kinvest_common import local_calendar_date
+
+    with monkeypatch.context() as clock_patch:
+        clock_patch.setenv("TZ", "Asia/Seoul")
+        time.tzset()
+        try:
+            assert local_calendar_date("2026-10-04T15:30:00Z") == "2026-10-05"
+            assert local_calendar_date("2026-10-05T00:30:00+09:00") == "2026-10-05"
+            assert local_calendar_date("2026-10-05") == "2026-10-05"
+            assert local_calendar_date("") == ""
+            assert local_calendar_date("synthetic") == ""
+        finally:
+            clock_patch.undo()
+            time.tzset()

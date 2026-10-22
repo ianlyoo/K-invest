@@ -1,0 +1,6 @@
+source: https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/overseas-stock/v1/trading/inquire-psamount
+data: https://apiportal.koreainvestment.com/api/apis/public/detail?accessUrl=/uapi/overseas-stock/v1/trading/inquire-psamount (field resAuth, verbatim)
+api: 해외주식 매수가능금액조회[v1_해외주식-014] real_tr_id=TTTS3007R virtual_tr_id=VTTS3007R
+portal lastModifiedDate: 2025-04-30T10:50:55+09:00
+retrieved: 2026-10-17 KST
+validity: NOT strict JSON (JSONDecodeError: Extra data: line 1 column 17 (char 16))

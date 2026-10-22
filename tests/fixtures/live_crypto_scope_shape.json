@@ -1,0 +1,833 @@
+{
+ "_provenance": "De-identified live snapshot shape (2026-10-14, a manual re-run after the 18:10 KST timer) trimmed for scope tests. Timestamps, statuses and reason codes are as observed; numbers are synthetic; ids and symbols are masked; components keep one row per account/currency/type; mark_quality, breakdown and nav_bridge are omitted.",
+ "snapshot": {
+  "snapshot_id": "live-shape",
+  "version": 1,
+  "snapshot_date": "2026-10-14",
+  "total_value_krw": 1000.0,
+  "created_at": "2026-10-14T09:10:15+00:00",
+  "updated_at": "2026-10-14T11:43:12+00:00",
+  "valuation_timezone": "Asia/Seoul",
+  "valuation_at": "2026-10-14T11:42:43+00:00",
+  "observed_at": "2026-10-14T11:42:43+00:00",
+  "nav_evidence_completed_at": "2026-10-14T11:42:50+00:00",
+  "calculation_version": "portfolio_nav_v2",
+  "result_status": "partial",
+  "reason_codes": [
+   "UNKNOWN_COMPONENT_PRICE_TIME",
+   "UNKNOWN_NATIVE_CASH_SETTLEMENT_BASIS",
+   "SETTLEMENT_BASIS_REFERENCE_ASSUMPTION"
+  ],
+  "quality_reason_details": [
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:pension:domestic",
+    "currency": "KRW",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:pension:domestic",
+    "currency": "KRW",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:domestic",
+    "currency": "KRW",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:domestic",
+    "currency": "KRW",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:domestic",
+    "currency": "KRW",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:domestic",
+    "currency": "KRW",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:domestic",
+    "currency": "KRW",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "USD",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "USD",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "USD",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "USD",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "USD",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "USD",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "USD",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "USD",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "USD",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "USD",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "USD",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "JPY",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "JPY",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:pension:domestic",
+    "currency": "KRW",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:domestic",
+    "currency": "KRW",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "JPY",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_COMPONENT_PRICE_TIME",
+    "account": "kis:overseas",
+    "currency": "USD",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_NATIVE_CASH_SETTLEMENT_BASIS",
+    "account": "toss:primary",
+    "currency": "KRW",
+    "resolved_for_native_nav": true
+   },
+   {
+    "reason_code": "UNKNOWN_NATIVE_CASH_SETTLEMENT_BASIS",
+    "account": "toss:primary",
+    "currency": "USD",
+    "resolved_for_native_nav": true
+   },
+   {
+    "reason_code": "UNKNOWN_NATIVE_CASH_SETTLEMENT_BASIS",
+    "account": "toss:secondary",
+    "currency": "KRW",
+    "resolved_for_native_nav": true
+   },
+   {
+    "reason_code": "UNKNOWN_NATIVE_CASH_SETTLEMENT_BASIS",
+    "account": "toss:secondary",
+    "currency": "USD",
+    "resolved_for_native_nav": true
+   },
+   {
+    "reason_code": "UNKNOWN_NATIVE_CASH_SETTLEMENT_BASIS",
+    "account": "kis:pension:domestic",
+    "currency": "KRW",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "UNKNOWN_NATIVE_CASH_SETTLEMENT_BASIS",
+    "account": "kis:domestic",
+    "currency": "KRW",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "SETTLEMENT_BASIS_REFERENCE_ASSUMPTION",
+    "account": "kis:overseas",
+    "currency": "JPY",
+    "resolved_for_native_nav": false
+   },
+   {
+    "reason_code": "SETTLEMENT_BASIS_REFERENCE_ASSUMPTION",
+    "account": "kis:overseas",
+    "currency": "USD",
+    "resolved_for_native_nav": false
+   }
+  ],
+  "collection_source_quality": {
+   "failed_sources": [],
+   "truncated_sources": [],
+   "reason_codes_by_source": {}
+  },
+  "external_flows": {
+   "status": "unknown",
+   "net_by_currency": null,
+   "reason_codes": [
+    "EXTERNAL_FLOW_COVERAGE_UNVERIFIED"
+   ],
+   "observed_events": [],
+   "valuation_timezone": "Asia/Seoul",
+   "date": "2026-10-14"
+  },
+  "consolidated_nav_krw": {
+   "value": 1000.0,
+   "status": "derived",
+   "reason_codes": [],
+   "basis": "legacy_broker_assets_plus_verified_futures_equity_before_settlement_adjustments"
+  },
+  "fx_times": {
+   "JPY": {
+    "rate_to_krw": 9.5,
+    "priced_at": "2026-10-14T00:00:00+01:00",
+    "observed_at": "2026-10-14T11:42:48+00:00",
+    "read_at": "2026-10-14T11:42:49.715748+00:00"
+   },
+   "USD": {
+    "rate_to_krw": 1400.0,
+    "priced_at": "2026-10-14T00:00:00+01:00",
+    "observed_at": "2026-10-14T11:42:48+00:00",
+    "read_at": "2026-10-14T11:42:49.286384+00:00"
+   }
+  },
+  "crypto_nav": {
+   "risk_snapshot_id": "risk-live-shape",
+   "observed_at": "2026-10-14T11:43:11.027755Z",
+   "age_seconds": 28.027755,
+   "max_age_seconds": 300,
+   "fx_times": {
+    "USDT": {
+     "rate_to_krw": "1400",
+     "source": "upbit_public_ticker",
+     "market": "KRW-USDT",
+     "priced_at": "2026-10-14T11:42:49.495000Z",
+     "observed_at": "2026-10-14T11:42:50.918000Z",
+     "read_at": "2026-10-14T11:42:50.918000Z",
+     "max_age_seconds": 300,
+     "reason_codes": []
+    },
+    "USDC": {
+     "rate_to_krw": "1390",
+     "source": "upbit_public_ticker",
+     "market": "KRW-USDC",
+     "priced_at": "2026-10-14T11:40:22.388000Z",
+     "observed_at": "2026-10-14T11:42:50.918000Z",
+     "read_at": "2026-10-14T11:42:50.918000Z",
+     "max_age_seconds": 300,
+     "reason_codes": []
+    }
+   },
+   "calculation_version": "futures_risk_v5_nav",
+   "binance": {
+    "by_currency": {
+     "U": {
+      "value": 0.0,
+      "status": "derived",
+      "reason_codes": [],
+      "decimal_value": "0"
+     },
+     "BFUSD": {
+      "value": 0.0,
+      "status": "derived",
+      "reason_codes": [],
+      "decimal_value": "0"
+     },
+     "BNB": {
+      "value": 0.0,
+      "status": "derived",
+      "reason_codes": [],
+      "decimal_value": "0"
+     },
+     "RWUSD": {
+      "value": 0.0,
+      "status": "derived",
+      "reason_codes": [],
+      "decimal_value": "0"
+     },
+     "BTC": {
+      "value": 0.0,
+      "status": "derived",
+      "reason_codes": [],
+      "decimal_value": "0"
+     },
+     "USDT": {
+      "value": 100.0,
+      "status": "derived",
+      "reason_codes": [],
+      "decimal_value": "100"
+     },
+     "USD1": {
+      "value": 0.0,
+      "status": "derived",
+      "reason_codes": [],
+      "decimal_value": "0"
+     },
+     "USDC": {
+      "value": 0.0,
+      "status": "derived",
+      "reason_codes": [],
+      "decimal_value": "0"
+     },
+     "FDUSD": {
+      "value": 0.0,
+      "status": "derived",
+      "reason_codes": [],
+      "decimal_value": "0"
+     },
+     "LDUSDT": {
+      "value": 0.0,
+      "status": "derived",
+      "reason_codes": [],
+      "decimal_value": "0"
+     },
+     "ETH": {
+      "value": 0.0,
+      "status": "derived",
+      "reason_codes": [],
+      "decimal_value": "0"
+     }
+    },
+    "value_krw": 140000.0,
+    "status": "derived",
+    "value_krw_decimal": "140000",
+    "reason_codes": [],
+    "accounts": [
+     {
+      "account_id": "<id>",
+      "ledger_account_identity": "<id>",
+      "scope": "futures_collateral",
+      "dex": "",
+      "asset": "U",
+      "abstraction": null,
+      "observed_at": "2026-10-14T11:42:51.833819Z",
+      "nav_price_time": "2026-10-14T11:43:11.656176Z",
+      "nav_price_time_basis": "coherent_account_read_completion",
+      "nav_account_mode": "single_asset"
+     },
+     {
+      "account_id": "<id>",
+      "ledger_account_identity": "<id>",
+      "scope": "futures_collateral",
+      "dex": "",
+      "asset": "BFUSD",
+      "abstraction": null,
+      "observed_at": "2026-10-14T11:42:51.833819Z",
+      "nav_price_time": "2026-10-14T11:43:11.656176Z",
+      "nav_price_time_basis": "coherent_account_read_completion",
+      "nav_account_mode": "single_asset"
+     },
+     {
+      "account_id": "<id>",
+      "ledger_account_identity": "<id>",
+      "scope": "futures_collateral",
+      "dex": "",
+      "asset": "BNB",
+      "abstraction": null,
+      "observed_at": "2026-10-14T11:42:51.833819Z",
+      "nav_price_time": "2026-10-14T11:43:11.656176Z",
+      "nav_price_time_basis": "coherent_account_read_completion",
+      "nav_account_mode": "single_asset"
+     },
+     {
+      "account_id": "<id>",
+      "ledger_account_identity": "<id>",
+      "scope": "futures_collateral",
+      "dex": "",
+      "asset": "RWUSD",
+      "abstraction": null,
+      "observed_at": "2026-10-14T11:42:51.833819Z",
+      "nav_price_time": "2026-10-14T11:43:11.656176Z",
+      "nav_price_time_basis": "coherent_account_read_completion",
+      "nav_account_mode": "single_asset"
+     },
+     {
+      "account_id": "<id>",
+      "ledger_account_identity": "<id>",
+      "scope": "futures_collateral",
+      "dex": "",
+      "asset": "BTC",
+      "abstraction": null,
+      "observed_at": "2026-10-14T11:42:51.833819Z",
+      "nav_price_time": "2026-10-14T11:43:11.656176Z",
+      "nav_price_time_basis": "coherent_account_read_completion",
+      "nav_account_mode": "single_asset"
+     },
+     {
+      "account_id": "<id>",
+      "ledger_account_identity": "<id>",
+      "scope": "futures_collateral",
+      "dex": "",
+      "asset": "USDT",
+      "abstraction": null,
+      "observed_at": "2026-10-14T11:42:51.833819Z",
+      "nav_price_time": "2026-10-14T11:43:11.656176Z",
+      "nav_price_time_basis": "coherent_account_read_completion",
+      "nav_account_mode": "single_asset"
+     },
+     {
+      "account_id": "<id>",
+      "ledger_account_identity": "<id>",
+      "scope": "futures_collateral",
+      "dex": "",
+      "asset": "USD1",
+      "abstraction": null,
+      "observed_at": "2026-10-14T11:42:51.833819Z",
+      "nav_price_time": "2026-10-14T11:43:11.656176Z",
+      "nav_price_time_basis": "coherent_account_read_completion",
+      "nav_account_mode": "single_asset"
+     },
+     {
+      "account_id": "<id>",
+      "ledger_account_identity": "<id>",
+      "scope": "futures_collateral",
+      "dex": "",
+      "asset": "USDC",
+      "abstraction": null,
+      "observed_at": "2026-10-14T11:42:51.833819Z",
+      "nav_price_time": "2026-10-14T11:43:11.656176Z",
+      "nav_price_time_basis": "coherent_account_read_completion",
+      "nav_account_mode": "single_asset"
+     },
+     {
+      "account_id": "<id>",
+      "ledger_account_identity": "<id>",
+      "scope": "futures_collateral",
+      "dex": "",
+      "asset": "FDUSD",
+      "abstraction": null,
+      "observed_at": "2026-10-14T11:42:51.833819Z",
+      "nav_price_time": "2026-10-14T11:43:11.656176Z",
+      "nav_price_time_basis": "coherent_account_read_completion",
+      "nav_account_mode": "single_asset"
+     },
+     {
+      "account_id": "<id>",
+      "ledger_account_identity": "<id>",
+      "scope": "futures_collateral",
+      "dex": "",
+      "asset": "LDUSDT",
+      "abstraction": null,
+      "observed_at": "2026-10-14T11:42:51.833819Z",
+      "nav_price_time": "2026-10-14T11:43:11.656176Z",
+      "nav_price_time_basis": "coherent_account_read_completion",
+      "nav_account_mode": "single_asset"
+     },
+     {
+      "account_id": "<id>",
+      "ledger_account_identity": "<id>",
+      "scope": "futures_collateral",
+      "dex": "",
+      "asset": "ETH",
+      "abstraction": null,
+      "observed_at": "2026-10-14T11:42:51.833819Z",
+      "nav_price_time": "2026-10-14T11:43:11.656176Z",
+      "nav_price_time_basis": "coherent_account_read_completion",
+      "nav_account_mode": "single_asset"
+     }
+    ]
+   },
+   "hyperliquid": {
+    "by_currency": {
+     "USDC": {
+      "value": 50.0,
+      "status": "derived",
+      "reason_codes": [],
+      "decimal_value": "50"
+     }
+    },
+    "value_krw": 69500.0,
+    "status": "derived",
+    "value_krw_decimal": "69500",
+    "reason_codes": [],
+    "accounts": [
+     {
+      "account_id": "<id>",
+      "ledger_account_identity": "<id>",
+      "scope": "unified_shared_wallet",
+      "dex": "",
+      "asset": "USDC",
+      "abstraction": "unifiedAccount",
+      "observed_at": "2026-10-14T11:43:11.027664Z",
+      "nav_price_time": "2026-10-14T11:43:04.019619Z",
+      "nav_price_time_basis": "current_state_read_completion",
+      "nav_account_mode": null
+     }
+    ]
+   }
+  },
+  "methodology": {
+   "basis_scope": "per_account"
+  },
+  "account_nav": {
+   "kis:domestic": {
+    "source_status": "complete",
+    "nav_native": {
+     "KRW": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     },
+     "USD": {
+      "value": null,
+      "status": "unknown",
+      "reason_codes": [
+       "MISSING_NATIVE_NAV_INPUT"
+      ]
+     }
+    },
+    "cash": {
+     "KRW": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     },
+     "USD": {
+      "value": null,
+      "status": "unknown",
+      "reason_codes": [
+       "MISSING_CASH_BALANCE"
+      ]
+     }
+    }
+   },
+   "kis:overseas": {
+    "source_status": "complete",
+    "nav_native": {
+     "JPY": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     },
+     "KRW": {
+      "value": null,
+      "status": "unknown",
+      "reason_codes": [
+       "MISSING_NATIVE_NAV_INPUT"
+      ]
+     },
+     "USD": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     }
+    },
+    "cash": {
+     "JPY": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     },
+     "KRW": {
+      "value": null,
+      "status": "unknown",
+      "reason_codes": [
+       "MISSING_CASH_BALANCE"
+      ]
+     },
+     "USD": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     }
+    }
+   },
+   "kis:pension:domestic": {
+    "source_status": "complete",
+    "nav_native": {
+     "KRW": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     },
+     "USD": {
+      "value": null,
+      "status": "unknown",
+      "reason_codes": [
+       "MISSING_NATIVE_NAV_INPUT"
+      ]
+     }
+    },
+    "cash": {
+     "KRW": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     },
+     "USD": {
+      "value": null,
+      "status": "unknown",
+      "reason_codes": [
+       "MISSING_CASH_BALANCE"
+      ]
+     }
+    }
+   },
+   "toss:primary": {
+    "source_status": "complete",
+    "nav_native": {
+     "KRW": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     },
+     "USD": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     }
+    },
+    "cash": {
+     "KRW": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     },
+     "USD": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     }
+    }
+   },
+   "toss:secondary": {
+    "source_status": "complete",
+    "nav_native": {
+     "KRW": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     },
+     "USD": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     }
+    },
+    "cash": {
+     "KRW": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     },
+     "USD": {
+      "value": 1000.0,
+      "status": "derived",
+      "reason_codes": []
+     }
+    }
+   }
+  },
+  "components": [
+   {
+    "provider": "toss",
+    "account": "toss:primary",
+    "symbol": "SYN0",
+    "currency": "KRW",
+    "component_type": "holding",
+    "priced_at": "2026-10-14T15:30:09.000+09:00",
+    "reason_codes": []
+   },
+   {
+    "provider": "toss",
+    "account": "toss:primary",
+    "symbol": "SYN1",
+    "currency": "USD",
+    "component_type": "holding",
+    "priced_at": "2026-10-14T20:42:30.000+09:00",
+    "reason_codes": []
+   },
+   {
+    "provider": "toss",
+    "account": "toss:secondary",
+    "symbol": "SYN2",
+    "currency": "KRW",
+    "component_type": "holding",
+    "priced_at": "2026-10-14T19:59:59.000+09:00",
+    "reason_codes": []
+   },
+   {
+    "provider": "toss",
+    "account": "toss:secondary",
+    "symbol": "SYN3",
+    "currency": "USD",
+    "component_type": "holding",
+    "priced_at": "2026-10-14T20:42:49.000+09:00",
+    "reason_codes": []
+   },
+   {
+    "provider": "kis",
+    "account": "kis:pension:domestic",
+    "symbol": "SYN4",
+    "currency": "KRW",
+    "component_type": "holding",
+    "priced_at": null,
+    "reason_codes": []
+   },
+   {
+    "provider": "kis",
+    "account": "kis:domestic",
+    "symbol": "SYN5",
+    "currency": "KRW",
+    "component_type": "holding",
+    "priced_at": null,
+    "reason_codes": []
+   },
+   {
+    "provider": "kis",
+    "account": "kis:overseas",
+    "symbol": "SYN6",
+    "currency": "USD",
+    "component_type": "holding",
+    "priced_at": null,
+    "reason_codes": []
+   },
+   {
+    "provider": "kis",
+    "account": "kis:overseas",
+    "symbol": "SYN7",
+    "currency": "JPY",
+    "component_type": "holding",
+    "priced_at": null,
+    "reason_codes": []
+   },
+   {
+    "provider": "toss",
+    "account": "toss:primary",
+    "symbol": "SYN8",
+    "currency": "KRW",
+    "component_type": "cash",
+    "priced_at": "2026-10-14T11:42:44+00:00",
+    "reason_codes": []
+   },
+   {
+    "provider": "toss",
+    "account": "toss:primary",
+    "symbol": "SYN9",
+    "currency": "USD",
+    "component_type": "cash",
+    "priced_at": "2026-10-14T11:42:45+00:00",
+    "reason_codes": []
+   },
+   {
+    "provider": "toss",
+    "account": "toss:secondary",
+    "symbol": "SYN10",
+    "currency": "KRW",
+    "component_type": "cash",
+    "priced_at": "2026-10-14T11:42:45+00:00",
+    "reason_codes": []
+   },
+   {
+    "provider": "toss",
+    "account": "toss:secondary",
+    "symbol": "SYN11",
+    "currency": "USD",
+    "component_type": "cash",
+    "priced_at": "2026-10-14T11:42:46+00:00",
+    "reason_codes": []
+   },
+   {
+    "provider": "kis",
+    "account": "kis:pension:domestic",
+    "symbol": "SYN12",
+    "currency": "KRW",
+    "component_type": "cash",
+    "priced_at": null,
+    "reason_codes": []
+   },
+   {
+    "provider": "kis",
+    "account": "kis:domestic",
+    "symbol": "SYN13",
+    "currency": "KRW",
+    "component_type": "cash",
+    "priced_at": null,
+    "reason_codes": []
+   },
+   {
+    "provider": "kis",
+    "account": "kis:overseas",
+    "symbol": "SYN14",
+    "currency": "JPY",
+    "component_type": "cash",
+    "priced_at": null,
+    "reason_codes": []
+   },
+   {
+    "provider": "kis",
+    "account": "kis:overseas",
+    "symbol": "SYN15",
+    "currency": "USD",
+    "component_type": "cash",
+    "priced_at": null,
+    "reason_codes": []
+   }
+  ]
+ },
+ "timer_run_2026_10_13": {
+  "valuation_at": "2026-10-13T09:10:03+00:00",
+  "nav_evidence_completed_at": "2026-10-13T09:10:08+00:00",
+  "created_at": "2026-10-12T21:27:08+00:00",
+  "updated_at": "2026-10-13T09:10:08+00:00",
+  "crypto_observed_at": "2026-10-13T09:01:52.307301Z",
+  "binance_account_observed_at": "2026-10-13T09:01:33.118326Z",
+  "hyperliquid_account_observed_at": "2026-10-13T09:01:52.307182Z"
+ }
+}

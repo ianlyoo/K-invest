@@ -9,7 +9,14 @@ token.json
 build/
 dist/
 *.egg-info/
-.claude/settings.local.json
-.claude/skills/
-CLAUDE.local.md
-docs/superpowers/
+
+.venv/
+.ruff_cache/
+
+# Local data and credentials
+*.db
+*.sqlite*
+*.pem
+*.key
+credentials/
+toss_creds*.json

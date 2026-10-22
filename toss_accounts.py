@@ -5,6 +5,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from threading import RLock
 from typing import Any, Mapping
 
 from kinvest_common import NotConfiguredError
@@ -17,6 +18,7 @@ class TossCredentials:
     label: str
     client_id: str
     client_secret: str
+    account_id: str = ""
 
 
 def _clean_label(value: str) -> str:
@@ -30,7 +32,7 @@ def _account_from_mapping(raw: Mapping[str, Any], fallback_label: str) -> TossCr
     if not client_id or not client_secret:
         return None
     label = _clean_label(str(raw.get("label") or raw.get("name") or fallback_label))
-    return TossCredentials(label=label, client_id=client_id, client_secret=client_secret)
+    return TossCredentials(label=label, client_id=client_id, client_secret=client_secret, account_id=str(raw.get("account_id") or ""))
 
 
 def _accounts_from_payload(payload: Any) -> list[TossCredentials]:
@@ -73,6 +75,7 @@ class TossAccountRegistry:
         self._accounts = accounts
         self._cache_dir = cache_dir or _default_cache_dir()
         self._clients: dict[str, TossClient] = {}
+        self._clients_lock = RLock()
 
     @classmethod
     def from_sources(
@@ -114,15 +117,17 @@ class TossAccountRegistry:
         raise KeyError(normalized)
 
     def client_for(self, label: str = "primary") -> TossClient:
-        account = self.credentials_for(label)
-        existing = self._clients.get(account.label)
-        if existing is not None:
-            return existing
-        cache_path = self._cache_dir / ("token.json" if account.label == "primary" else f"token_{account.label}.json")
-        client = TossClient(
-            client_id=account.client_id,
-            client_secret=account.client_secret,
-            token_cache_path=cache_path,
-        )
-        self._clients[account.label] = client
-        return client
+        with self._clients_lock:
+            account = self.credentials_for(label)
+            existing = self._clients.get(account.label)
+            if existing is not None:
+                return existing
+            cache_path = self._cache_dir / ("token.json" if account.label == "primary" else f"token_{account.label}.json")
+            client = TossClient(
+                client_id=account.client_id,
+                client_secret=account.client_secret,
+                token_cache_path=cache_path,
+            )
+            client.journal_account_key = "toss:" + (account.account_id or account.label)
+            self._clients[account.label] = client
+            return client

@@ -1,0 +1,8 @@
+{
+  "all_excluded": "1ed4c01ce35485de9ca40f921e72243a62674ab83c2fefa4349bf25bc98e7645",
+  "failed": "81a5ae31a47e207e050e07da612fa58dec99018ae13b566f12cc18fdc9dd0459",
+  "mixed": "13bfd27e10017bffc3e4030f9a0c3c5798ececdfe8bfeb39ef4073d1b56ff402",
+  "no_breaks": "457b5ebf940ebe0f55592d077462e819c941b119e6f56c1b772f0a4b25dd7baa",
+  "out_of_scope": "43aa01fce92ec8ccb0a894b15bb3c64bd53057b61cfaf7bcdefdc64236ba638e",
+  "truncated": "ae69a408a20b744f5d93472c4eff3bfe38383187174742e800f78dc2a6850919"
+}

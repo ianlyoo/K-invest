@@ -1,0 +1,1260 @@
+{
+  "get_portfolio_history": {
+    "collection_health": {
+      "calendar_status": "unknown",
+      "expected_day_gaps": null,
+      "expected_days": null
+    },
+    "connector_refresh_required": true,
+    "input_snapshot_ids": [
+      "snap-2025-01-01",
+      "snap-2026-01-01"
+    ],
+    "latest": {
+      "account_nav": {},
+      "consolidated_nav_krw": {
+        "reason_codes": [],
+        "status": "derived",
+        "value": 320
+      },
+      "snapshot_date": "2026-01-01",
+      "snapshot_id": "snap-2026-01-01",
+      "total_value_krw": 160,
+      "valuation_timezone": "Asia/Seoul"
+    },
+    "limitations": [
+      "Deposits, withdrawals, and cash transfers are not exposed by the Toss or KIS open APIs used here, so external flow is unknown. Flow-dependent returns and risk metrics are unavailable until a source with complete dated coverage or verified zero is supplied.",
+      "Dividends, interest, and withholding tax are not available per account from either provider; DIVIDEND/INTEREST/TAX entries stay empty.",
+      "Corporate actions (split, merger, spinoff, ticker change) have no API source; a split that is not reflected in broker-reported quantities will distort ledger-derived cost basis until the broker restates it.",
+      "KIS domestic fills report one estimated total cost (\uc81c\ube44\uc6a9) rather than commission and tax separately, so it is recorded entirely as `fee`.",
+      "Sales without purchases in the available ledger appear under `incomplete_cost_basis`; earlier history may exist outside the requested window."
+    ],
+    "methodology": {
+      "eligibility": "unknown external flows yield null returns and risk metrics with reason codes",
+      "flow_timing": "TWR assumes external flows at each snapshot interval end",
+      "method_version": "flow_eligibility_v1",
+      "raw_asset_values": "asset changes/drawdown/volatility describe values, not investment returns",
+      "risk_stats": "flow-adjusted daily snapshot changes annualized at 252 days; requires verified flows and daily observations",
+      "simple_return": "(end NAV - start NAV - net external flows) / (start NAV + net inflows)",
+      "twr": "chained sub-period returns from stored daily NAV snapshots, flow-adjusted",
+      "xirr": "money-weighted annualized return over dated flows plus terminal NAV"
+    },
+    "period": {
+      "end": "2026-01-01",
+      "start": "2025-01-01"
+    },
+    "pnl_series": {
+      "daily": [
+        {
+          "date": "2026-01-01",
+          "metrics": {
+            "pnl_krw": {
+              "coverage": {
+                "external_cashflows": "unknown",
+                "snapshot_dates": [
+                  "2025-01-01",
+                  "2026-01-01"
+                ]
+              },
+              "input_snapshot_id": null,
+              "input_snapshot_ids": [
+                "snap-2025-01-01",
+                "snap-2026-01-01"
+              ],
+              "method_version": "flow_eligibility_v1",
+              "reason_codes": [
+                "MISSING_EXTERNAL_CASHFLOWS"
+              ],
+              "required_inputs": [
+                "external_cashflows",
+                "nav_snapshots"
+              ],
+              "status": "unavailable",
+              "value": null
+            },
+            "return_pct": {
+              "coverage": {
+                "external_cashflows": "unknown",
+                "snapshot_dates": [
+                  "2025-01-01",
+                  "2026-01-01"
+                ]
+              },
+              "input_snapshot_id": null,
+              "input_snapshot_ids": [
+                "snap-2025-01-01",
+                "snap-2026-01-01"
+              ],
+              "method_version": "flow_eligibility_v1",
+              "reason_codes": [
+                "MISSING_EXTERNAL_CASHFLOWS"
+              ],
+              "required_inputs": [
+                "external_cashflows",
+                "positive_start_nav"
+              ],
+              "status": "unavailable",
+              "value": null
+            }
+          },
+          "net_flow_krw": null,
+          "pnl_krw": null,
+          "raw_asset_change_krw": 60.0,
+          "raw_asset_change_pct": 60.0,
+          "return_pct": null
+        }
+      ],
+      "monthly": {
+        "2026-01": null
+      },
+      "raw_monthly_asset_change_krw": {
+        "2026-01": 60.0
+      }
+    },
+    "replay_parameters": {
+      "end_date": "2026-01-01",
+      "expected_snapshot_dates": null,
+      "external_cashflows_verified_zero": false,
+      "input_snapshot_ids": [
+        "snap-2025-01-01",
+        "snap-2026-01-01"
+      ],
+      "risk_free_rate": 0.0,
+      "start_date": "2025-01-01"
+    },
+    "result_status": "partial",
+    "snapshot_count": 2,
+    "snapshots": [
+      {
+        "account_nav": {},
+        "consolidated_nav_krw": {
+          "reason_codes": [],
+          "status": "derived",
+          "value": 200
+        },
+        "snapshot_date": "2025-01-01",
+        "snapshot_id": "snap-2025-01-01",
+        "total_value_krw": 100,
+        "valuation_timezone": "Asia/Seoul"
+      },
+      {
+        "account_nav": {},
+        "consolidated_nav_krw": {
+          "reason_codes": [],
+          "status": "derived",
+          "value": 320
+        },
+        "snapshot_date": "2026-01-01",
+        "snapshot_id": "snap-2026-01-01",
+        "total_value_krw": 160,
+        "valuation_timezone": "Asia/Seoul"
+      }
+    ],
+    "statistics": {
+      "asset_value_drawdown_pct": 0.0,
+      "asset_value_drawdown_peak_date": null,
+      "asset_value_drawdown_trough_date": null,
+      "asset_value_volatility_annual_pct": null,
+      "asset_value_volatility_per_observation_pct": null,
+      "best_day_pct": null,
+      "calculation_version": "flow_eligibility_v1",
+      "first_date": "2025-01-01",
+      "input_snapshot_ids": [
+        "snap-2025-01-01",
+        "snap-2026-01-01"
+      ],
+      "last_date": "2026-01-01",
+      "max_drawdown_pct": null,
+      "max_drawdown_peak_date": null,
+      "max_drawdown_trough_date": null,
+      "metrics": {
+        "best_day_pct": {
+          "coverage": {
+            "external_cashflows": {
+              "end": "2026-01-01",
+              "source": null,
+              "start": "2025-01-01",
+              "status": "unknown"
+            },
+            "input_quality": {
+              "expected_snapshot_dates": null,
+              "snapshot_reason_codes": []
+            },
+            "nav_observations": 2,
+            "snapshot_calculation_versions": [],
+            "snapshot_dates": [
+              "2025-01-01",
+              "2026-01-01"
+            ],
+            "snapshot_ids": [
+              "snap-2025-01-01",
+              "snap-2026-01-01"
+            ]
+          },
+          "input_snapshot_id": null,
+          "input_snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ],
+          "method_version": "flow_eligibility_v1",
+          "reason_codes": [
+            "MISSING_EXTERNAL_CASHFLOWS",
+            "NON_DAILY_NAV_SERIES"
+          ],
+          "required_inputs": [
+            "daily_nav_snapshots",
+            "external_cashflows"
+          ],
+          "status": "unavailable",
+          "value": null
+        },
+        "max_drawdown_pct": {
+          "coverage": {
+            "external_cashflows": {
+              "end": "2026-01-01",
+              "source": null,
+              "start": "2025-01-01",
+              "status": "unknown"
+            },
+            "input_quality": {
+              "expected_snapshot_dates": null,
+              "snapshot_reason_codes": []
+            },
+            "nav_observations": 2,
+            "snapshot_calculation_versions": [],
+            "snapshot_dates": [
+              "2025-01-01",
+              "2026-01-01"
+            ],
+            "snapshot_ids": [
+              "snap-2025-01-01",
+              "snap-2026-01-01"
+            ]
+          },
+          "input_snapshot_id": null,
+          "input_snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ],
+          "method_version": "flow_eligibility_v1",
+          "reason_codes": [
+            "MISSING_EXTERNAL_CASHFLOWS"
+          ],
+          "required_inputs": [
+            "nav_snapshots",
+            "external_cashflows"
+          ],
+          "status": "unavailable",
+          "value": null
+        },
+        "return_annual_pct": {
+          "coverage": {
+            "external_cashflows": {
+              "end": "2026-01-01",
+              "source": null,
+              "start": "2025-01-01",
+              "status": "unknown"
+            },
+            "input_quality": {
+              "expected_snapshot_dates": null,
+              "snapshot_reason_codes": []
+            },
+            "nav_observations": 2,
+            "snapshot_calculation_versions": [],
+            "snapshot_dates": [
+              "2025-01-01",
+              "2026-01-01"
+            ],
+            "snapshot_ids": [
+              "snap-2025-01-01",
+              "snap-2026-01-01"
+            ]
+          },
+          "input_snapshot_id": null,
+          "input_snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ],
+          "method_version": "flow_eligibility_v1",
+          "reason_codes": [
+            "MISSING_EXTERNAL_CASHFLOWS",
+            "NON_DAILY_NAV_SERIES"
+          ],
+          "required_inputs": [
+            "daily_nav_snapshots",
+            "external_cashflows"
+          ],
+          "status": "unavailable",
+          "value": null
+        },
+        "sharpe": {
+          "coverage": {
+            "external_cashflows": {
+              "end": "2026-01-01",
+              "source": null,
+              "start": "2025-01-01",
+              "status": "unknown"
+            },
+            "input_quality": {
+              "expected_snapshot_dates": null,
+              "snapshot_reason_codes": []
+            },
+            "nav_observations": 2,
+            "snapshot_calculation_versions": [],
+            "snapshot_dates": [
+              "2025-01-01",
+              "2026-01-01"
+            ],
+            "snapshot_ids": [
+              "snap-2025-01-01",
+              "snap-2026-01-01"
+            ]
+          },
+          "input_snapshot_id": null,
+          "input_snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ],
+          "method_version": "flow_eligibility_v1",
+          "reason_codes": [
+            "MISSING_EXTERNAL_CASHFLOWS",
+            "NON_DAILY_NAV_SERIES",
+            "INSUFFICIENT_RETURN_OBSERVATIONS"
+          ],
+          "required_inputs": [
+            "daily_nav_snapshots",
+            "external_cashflows"
+          ],
+          "status": "unavailable",
+          "value": null
+        },
+        "sortino": {
+          "coverage": {
+            "external_cashflows": {
+              "end": "2026-01-01",
+              "source": null,
+              "start": "2025-01-01",
+              "status": "unknown"
+            },
+            "input_quality": {
+              "expected_snapshot_dates": null,
+              "snapshot_reason_codes": []
+            },
+            "nav_observations": 2,
+            "snapshot_calculation_versions": [],
+            "snapshot_dates": [
+              "2025-01-01",
+              "2026-01-01"
+            ],
+            "snapshot_ids": [
+              "snap-2025-01-01",
+              "snap-2026-01-01"
+            ]
+          },
+          "input_snapshot_id": null,
+          "input_snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ],
+          "method_version": "flow_eligibility_v1",
+          "reason_codes": [
+            "MISSING_EXTERNAL_CASHFLOWS",
+            "NON_DAILY_NAV_SERIES"
+          ],
+          "required_inputs": [
+            "daily_nav_snapshots",
+            "external_cashflows"
+          ],
+          "status": "unavailable",
+          "value": null
+        },
+        "volatility_annual_pct": {
+          "coverage": {
+            "external_cashflows": {
+              "end": "2026-01-01",
+              "source": null,
+              "start": "2025-01-01",
+              "status": "unknown"
+            },
+            "input_quality": {
+              "expected_snapshot_dates": null,
+              "snapshot_reason_codes": []
+            },
+            "nav_observations": 2,
+            "snapshot_calculation_versions": [],
+            "snapshot_dates": [
+              "2025-01-01",
+              "2026-01-01"
+            ],
+            "snapshot_ids": [
+              "snap-2025-01-01",
+              "snap-2026-01-01"
+            ]
+          },
+          "input_snapshot_id": null,
+          "input_snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ],
+          "method_version": "flow_eligibility_v1",
+          "reason_codes": [
+            "MISSING_EXTERNAL_CASHFLOWS",
+            "NON_DAILY_NAV_SERIES",
+            "INSUFFICIENT_RETURN_OBSERVATIONS"
+          ],
+          "required_inputs": [
+            "daily_nav_snapshots",
+            "external_cashflows"
+          ],
+          "status": "unavailable",
+          "value": null
+        },
+        "worst_day_pct": {
+          "coverage": {
+            "external_cashflows": {
+              "end": "2026-01-01",
+              "source": null,
+              "start": "2025-01-01",
+              "status": "unknown"
+            },
+            "input_quality": {
+              "expected_snapshot_dates": null,
+              "snapshot_reason_codes": []
+            },
+            "nav_observations": 2,
+            "snapshot_calculation_versions": [],
+            "snapshot_dates": [
+              "2025-01-01",
+              "2026-01-01"
+            ],
+            "snapshot_ids": [
+              "snap-2025-01-01",
+              "snap-2026-01-01"
+            ]
+          },
+          "input_snapshot_id": null,
+          "input_snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ],
+          "method_version": "flow_eligibility_v1",
+          "reason_codes": [
+            "MISSING_EXTERNAL_CASHFLOWS",
+            "NON_DAILY_NAV_SERIES"
+          ],
+          "required_inputs": [
+            "daily_nav_snapshots",
+            "external_cashflows"
+          ],
+          "status": "unavailable",
+          "value": null
+        }
+      },
+      "observations": 2,
+      "raw_asset_change_pct": 60.0,
+      "raw_best_asset_change_pct": 60.0,
+      "raw_worst_asset_change_pct": 60.0,
+      "result_status": "partial",
+      "return_annual_pct": null,
+      "risk_free_rate_used": 0.0,
+      "sharpe": null,
+      "sortino": null,
+      "volatility_annual_pct": null,
+      "worst_day_pct": null
+    },
+    "stored_range": {
+      "first": "2025-01-01",
+      "last": "2026-01-01",
+      "total": 2
+    }
+  },
+  "get_portfolio_performance": {
+    "calculation_version": "flow_eligibility_v1",
+    "calendar": {
+      "calendar_status": "unknown",
+      "expected_day_gaps": null,
+      "expected_days": null
+    },
+    "connector_refresh_required": true,
+    "coverage": {
+      "external_cashflows": {
+        "reason_codes": [
+          "MISSING_EXTERNAL_CASHFLOWS"
+        ],
+        "status": "unknown"
+      },
+      "input_quality": {
+        "expected_snapshot_dates": null,
+        "missing_currencies": [],
+        "snapshot_reason_codes": []
+      },
+      "nav_observations": 2,
+      "snapshot_calculation_versions": [],
+      "snapshot_dates": [
+        "2025-01-01",
+        "2026-01-01"
+      ],
+      "snapshot_ids": [
+        "snap-2025-01-01",
+        "snap-2026-01-01"
+      ]
+    },
+    "end_nav_krw": 160.0,
+    "flows": {
+      "buy_amount_krw": null,
+      "deposits_krw": null,
+      "dividends_krw": null,
+      "dividends_reason_codes": [
+        "LEDGER_NOT_PINNED",
+        "DIVIDENDS_UNAVAILABLE"
+      ],
+      "dividends_status": "unavailable",
+      "external_cashflows": {
+        "reason_codes": [
+          "MISSING_EXTERNAL_CASHFLOWS"
+        ],
+        "status": "unknown"
+      },
+      "fees_krw": null,
+      "fees_reason_codes": [
+        "LEDGER_NOT_PINNED",
+        "FEES_UNAVAILABLE"
+      ],
+      "fees_status": "unavailable",
+      "flows_by_date": null,
+      "interest_krw": null,
+      "interest_reason_codes": [
+        "LEDGER_NOT_PINNED",
+        "INTEREST_UNAVAILABLE"
+      ],
+      "interest_status": "unavailable",
+      "net_deposits_krw": null,
+      "observed_deposits_krw": null,
+      "observed_withdrawals_krw": null,
+      "sell_amount_krw": null,
+      "taxes_krw": null,
+      "taxes_reason_codes": [
+        "LEDGER_NOT_PINNED",
+        "TAXES_UNAVAILABLE"
+      ],
+      "taxes_status": "unavailable",
+      "withdrawals_krw": null
+    },
+    "health": {},
+    "incomplete_cost_basis": [],
+    "input_snapshot_ids": [
+      "snap-2025-01-01",
+      "snap-2026-01-01"
+    ],
+    "ledger_status": "unavailable",
+    "limitations": [
+      "Deposits, withdrawals, and cash transfers are not exposed by the Toss or KIS open APIs used here, so external flow is unknown. Flow-dependent returns and risk metrics are unavailable until a source with complete dated coverage or verified zero is supplied.",
+      "Dividends, interest, and withholding tax are not available per account from either provider; DIVIDEND/INTEREST/TAX entries stay empty.",
+      "Corporate actions (split, merger, spinoff, ticker change) have no API source; a split that is not reflected in broker-reported quantities will distort ledger-derived cost basis until the broker restates it.",
+      "KIS domestic fills report one estimated total cost (\uc81c\ube44\uc6a9) rather than commission and tax separately, so it is recorded entirely as `fee`.",
+      "Sales without purchases in the available ledger appear under `incomplete_cost_basis`; earlier history may exist outside the requested window.",
+      "Snapshot IDs do not pin a ledger or live FX; ledger decomposition is unavailable in replay."
+    ],
+    "methodology": {
+      "base_currency": "KRW",
+      "basis_scope": "per_account",
+      "cost_basis": "Holdings/summary cost_basis and unrealized P&L use broker-reported purchase cost; buy fee/tax inclusion is unknown unless explicitly labeled. Ledger replay uses moving average per (account, symbol, currency) and capitalizes reported buy fees/taxes. Aggregates sum rounded account costs and P&L; ledger_cost_basis is unavailable when no ledger is loaded or account quantities do not match. Compare labeled bases before combining P&L.",
+      "eligibility": "unknown external flows yield null returns and risk metrics with reason codes",
+      "flow_timing": "TWR assumes external flows at each snapshot interval end",
+      "fx_decomposition": "realized_pnl_krw = realized_pnl x exit rate + realized_fx_krw, where realized_fx_krw = cost_in_currency x exit rate - cost_in_krw. Requires a broker-recorded rate on both the buy and the sale. If any window sale lacks its FX part, totals.realized_fx_krw is null with FX_DECOMPOSITION_PARTIAL in realized_fx_krw_reason_codes (Toss does not report trade FX rates).",
+      "fx_realized": "broker-recorded trade rate when available, else current spot",
+      "fx_valuation": "current spot rate (yfinance <CUR>KRW=X), applied to native values",
+      "method_version": "flow_eligibility_v1",
+      "position_grouping": "(symbol, currency) \u2014 same ticker across accounts is one position",
+      "raw_asset_values": "asset changes/drawdown/volatility describe values, not investment returns",
+      "risk_stats": "flow-adjusted daily snapshot changes annualized at 252 days; requires verified flows and daily observations",
+      "settlement": "KIS overseas: reference assumes executed positions and a deposit separate from buy/sell totals; nav_bridge applies those totals once. KIS domestic and Toss: unsettled inclusion and position basis are unverified. Toss cash here is buying power. Settlement-adjusted NAV is a reference, not official NAV or withdrawable cash.",
+      "simple_return": "(end NAV - start NAV - net external flows) / (start NAV + net inflows)",
+      "twr": "chained sub-period returns from stored daily NAV snapshots, flow-adjusted",
+      "xirr": "money-weighted annualized return over dated flows plus terminal NAV"
+    },
+    "metrics": {
+      "profit_krw": {
+        "coverage": {
+          "external_cashflows": {
+            "reason_codes": [
+              "MISSING_EXTERNAL_CASHFLOWS"
+            ],
+            "status": "unknown"
+          },
+          "input_quality": {
+            "expected_snapshot_dates": null,
+            "missing_currencies": [],
+            "snapshot_reason_codes": []
+          },
+          "nav_observations": 2,
+          "snapshot_calculation_versions": [],
+          "snapshot_dates": [
+            "2025-01-01",
+            "2026-01-01"
+          ],
+          "snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ]
+        },
+        "input_snapshot_id": null,
+        "input_snapshot_ids": [
+          "snap-2025-01-01",
+          "snap-2026-01-01"
+        ],
+        "method_version": "flow_eligibility_v1",
+        "reason_codes": [
+          "MISSING_EXTERNAL_CASHFLOWS"
+        ],
+        "required_inputs": [
+          "start_nav",
+          "end_nav",
+          "external_cashflows"
+        ],
+        "status": "unavailable",
+        "value": null
+      },
+      "realized_krw": {
+        "coverage": {
+          "external_cashflows": {
+            "reason_codes": [
+              "MISSING_EXTERNAL_CASHFLOWS"
+            ],
+            "status": "unknown"
+          },
+          "input_quality": {
+            "expected_snapshot_dates": null,
+            "missing_currencies": [],
+            "snapshot_reason_codes": []
+          },
+          "nav_observations": 2,
+          "snapshot_calculation_versions": [],
+          "snapshot_dates": [
+            "2025-01-01",
+            "2026-01-01"
+          ],
+          "snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ]
+        },
+        "input_snapshot_id": null,
+        "input_snapshot_ids": [
+          "snap-2025-01-01",
+          "snap-2026-01-01"
+        ],
+        "method_version": "flow_eligibility_v1",
+        "reason_codes": [
+          "LEDGER_NOT_PINNED"
+        ],
+        "required_inputs": [
+          "complete_cost_basis",
+          "complete_ledger",
+          "fx"
+        ],
+        "status": "unavailable",
+        "value": null
+      },
+      "simple_return_pct": {
+        "coverage": {
+          "external_cashflows": {
+            "reason_codes": [
+              "MISSING_EXTERNAL_CASHFLOWS"
+            ],
+            "status": "unknown"
+          },
+          "input_quality": {
+            "expected_snapshot_dates": null,
+            "missing_currencies": [],
+            "snapshot_reason_codes": []
+          },
+          "nav_observations": 2,
+          "snapshot_calculation_versions": [],
+          "snapshot_dates": [
+            "2025-01-01",
+            "2026-01-01"
+          ],
+          "snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ]
+        },
+        "input_snapshot_id": null,
+        "input_snapshot_ids": [
+          "snap-2025-01-01",
+          "snap-2026-01-01"
+        ],
+        "method_version": "flow_eligibility_v1",
+        "reason_codes": [
+          "MISSING_EXTERNAL_CASHFLOWS"
+        ],
+        "required_inputs": [
+          "start_nav",
+          "end_nav",
+          "external_cashflows"
+        ],
+        "status": "unavailable",
+        "value": null
+      },
+      "twr_pct": {
+        "coverage": {
+          "external_cashflows": {
+            "reason_codes": [
+              "MISSING_EXTERNAL_CASHFLOWS"
+            ],
+            "status": "unknown"
+          },
+          "input_quality": {
+            "expected_snapshot_dates": null,
+            "missing_currencies": [],
+            "snapshot_reason_codes": []
+          },
+          "nav_observations": 2,
+          "snapshot_calculation_versions": [],
+          "snapshot_dates": [
+            "2025-01-01",
+            "2026-01-01"
+          ],
+          "snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ]
+        },
+        "input_snapshot_id": null,
+        "input_snapshot_ids": [
+          "snap-2025-01-01",
+          "snap-2026-01-01"
+        ],
+        "method_version": "flow_eligibility_v1",
+        "reason_codes": [
+          "MISSING_EXTERNAL_CASHFLOWS"
+        ],
+        "required_inputs": [
+          "nav_snapshots",
+          "external_cashflows"
+        ],
+        "status": "unavailable",
+        "value": null
+      },
+      "unrealized_krw": {
+        "coverage": {
+          "external_cashflows": {
+            "reason_codes": [
+              "MISSING_EXTERNAL_CASHFLOWS"
+            ],
+            "status": "unknown"
+          },
+          "input_quality": {
+            "expected_snapshot_dates": null,
+            "missing_currencies": [],
+            "snapshot_reason_codes": []
+          },
+          "nav_observations": 2,
+          "snapshot_calculation_versions": [],
+          "snapshot_dates": [
+            "2025-01-01",
+            "2026-01-01"
+          ],
+          "snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ]
+        },
+        "input_snapshot_id": null,
+        "input_snapshot_ids": [
+          "snap-2025-01-01",
+          "snap-2026-01-01"
+        ],
+        "method_version": "flow_eligibility_v1",
+        "reason_codes": [
+          "INSUFFICIENT_INPUTS"
+        ],
+        "required_inputs": [
+          "holdings",
+          "cost_basis",
+          "fx"
+        ],
+        "status": "unavailable",
+        "value": null
+      },
+      "xirr_pct": {
+        "coverage": {
+          "external_cashflows": {
+            "reason_codes": [
+              "MISSING_EXTERNAL_CASHFLOWS"
+            ],
+            "status": "unknown"
+          },
+          "input_quality": {
+            "expected_snapshot_dates": null,
+            "missing_currencies": [],
+            "snapshot_reason_codes": []
+          },
+          "nav_observations": 2,
+          "snapshot_calculation_versions": [],
+          "snapshot_dates": [
+            "2025-01-01",
+            "2026-01-01"
+          ],
+          "snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ]
+        },
+        "input_snapshot_id": null,
+        "input_snapshot_ids": [
+          "snap-2025-01-01",
+          "snap-2026-01-01"
+        ],
+        "method_version": "flow_eligibility_v1",
+        "reason_codes": [
+          "MISSING_EXTERNAL_CASHFLOWS"
+        ],
+        "required_inputs": [
+          "start_nav",
+          "end_nav",
+          "dated_external_cashflows"
+        ],
+        "status": "unavailable",
+        "value": null
+      }
+    },
+    "nav_observations": 2,
+    "period": {
+      "end": "2026-01-01",
+      "start": "2025-01-01"
+    },
+    "pnl": {
+      "dividends_krw": null,
+      "dividends_reason_codes": [
+        "LEDGER_NOT_PINNED",
+        "DIVIDENDS_UNAVAILABLE"
+      ],
+      "dividends_status": "unavailable",
+      "fees_krw": null,
+      "fees_reason_codes": [
+        "LEDGER_NOT_PINNED",
+        "FEES_UNAVAILABLE"
+      ],
+      "fees_status": "unavailable",
+      "fx_krw": null,
+      "interest_krw": null,
+      "interest_reason_codes": [
+        "LEDGER_NOT_PINNED",
+        "INTEREST_UNAVAILABLE"
+      ],
+      "interest_status": "unavailable",
+      "realized_krw": null,
+      "taxes_krw": null,
+      "taxes_reason_codes": [
+        "LEDGER_NOT_PINNED",
+        "TAXES_UNAVAILABLE"
+      ],
+      "taxes_status": "unavailable",
+      "unrealized_krw": null
+    },
+    "pnl_series": {
+      "daily": [
+        {
+          "date": "2026-01-01",
+          "metrics": {
+            "pnl_krw": {
+              "coverage": {
+                "external_cashflows": "unknown",
+                "snapshot_dates": [
+                  "2025-01-01",
+                  "2026-01-01"
+                ]
+              },
+              "input_snapshot_id": null,
+              "input_snapshot_ids": [
+                "snap-2025-01-01",
+                "snap-2026-01-01"
+              ],
+              "method_version": "flow_eligibility_v1",
+              "reason_codes": [
+                "MISSING_EXTERNAL_CASHFLOWS"
+              ],
+              "required_inputs": [
+                "external_cashflows",
+                "nav_snapshots"
+              ],
+              "status": "unavailable",
+              "value": null
+            },
+            "return_pct": {
+              "coverage": {
+                "external_cashflows": "unknown",
+                "snapshot_dates": [
+                  "2025-01-01",
+                  "2026-01-01"
+                ]
+              },
+              "input_snapshot_id": null,
+              "input_snapshot_ids": [
+                "snap-2025-01-01",
+                "snap-2026-01-01"
+              ],
+              "method_version": "flow_eligibility_v1",
+              "reason_codes": [
+                "MISSING_EXTERNAL_CASHFLOWS"
+              ],
+              "required_inputs": [
+                "external_cashflows",
+                "positive_start_nav"
+              ],
+              "status": "unavailable",
+              "value": null
+            }
+          },
+          "net_flow_krw": null,
+          "pnl_krw": null,
+          "raw_asset_change_krw": 60.0,
+          "raw_asset_change_pct": 60.0,
+          "return_pct": null
+        }
+      ],
+      "monthly": {
+        "2026-01": null
+      },
+      "raw_monthly_asset_change_krw": {
+        "2026-01": 60.0
+      }
+    },
+    "profit_krw": null,
+    "raw_asset_change_krw": 60.0,
+    "raw_asset_change_pct": 60.0,
+    "realized_by_symbol": [],
+    "replay_scope": "snapshot_nav_only",
+    "result_status": "partial",
+    "returns": {
+      "mwr_equals_xirr": true,
+      "simple_return_pct": null,
+      "twr_pct": null,
+      "xirr_pct": null
+    },
+    "risk": {
+      "asset_value_drawdown_pct": 0.0,
+      "asset_value_drawdown_peak_date": null,
+      "asset_value_drawdown_trough_date": null,
+      "asset_value_volatility_annual_pct": null,
+      "asset_value_volatility_per_observation_pct": null,
+      "best_day_pct": null,
+      "calculation_version": "flow_eligibility_v1",
+      "first_date": "2025-01-01",
+      "input_snapshot_ids": [
+        "snap-2025-01-01",
+        "snap-2026-01-01"
+      ],
+      "last_date": "2026-01-01",
+      "max_drawdown_pct": null,
+      "max_drawdown_peak_date": null,
+      "max_drawdown_trough_date": null,
+      "metrics": {
+        "best_day_pct": {
+          "coverage": {
+            "external_cashflows": {
+              "end": "2026-01-01",
+              "source": null,
+              "start": "2025-01-01",
+              "status": "unknown"
+            },
+            "input_quality": {
+              "expected_snapshot_dates": null,
+              "missing_currencies": [],
+              "snapshot_reason_codes": []
+            },
+            "nav_observations": 2,
+            "snapshot_calculation_versions": [],
+            "snapshot_dates": [
+              "2025-01-01",
+              "2026-01-01"
+            ],
+            "snapshot_ids": [
+              "snap-2025-01-01",
+              "snap-2026-01-01"
+            ]
+          },
+          "input_snapshot_id": null,
+          "input_snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ],
+          "method_version": "flow_eligibility_v1",
+          "reason_codes": [
+            "MISSING_EXTERNAL_CASHFLOWS",
+            "NON_DAILY_NAV_SERIES"
+          ],
+          "required_inputs": [
+            "daily_nav_snapshots",
+            "external_cashflows"
+          ],
+          "status": "unavailable",
+          "value": null
+        },
+        "max_drawdown_pct": {
+          "coverage": {
+            "external_cashflows": {
+              "end": "2026-01-01",
+              "source": null,
+              "start": "2025-01-01",
+              "status": "unknown"
+            },
+            "input_quality": {
+              "expected_snapshot_dates": null,
+              "missing_currencies": [],
+              "snapshot_reason_codes": []
+            },
+            "nav_observations": 2,
+            "snapshot_calculation_versions": [],
+            "snapshot_dates": [
+              "2025-01-01",
+              "2026-01-01"
+            ],
+            "snapshot_ids": [
+              "snap-2025-01-01",
+              "snap-2026-01-01"
+            ]
+          },
+          "input_snapshot_id": null,
+          "input_snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ],
+          "method_version": "flow_eligibility_v1",
+          "reason_codes": [
+            "MISSING_EXTERNAL_CASHFLOWS"
+          ],
+          "required_inputs": [
+            "nav_snapshots",
+            "external_cashflows"
+          ],
+          "status": "unavailable",
+          "value": null
+        },
+        "return_annual_pct": {
+          "coverage": {
+            "external_cashflows": {
+              "end": "2026-01-01",
+              "source": null,
+              "start": "2025-01-01",
+              "status": "unknown"
+            },
+            "input_quality": {
+              "expected_snapshot_dates": null,
+              "missing_currencies": [],
+              "snapshot_reason_codes": []
+            },
+            "nav_observations": 2,
+            "snapshot_calculation_versions": [],
+            "snapshot_dates": [
+              "2025-01-01",
+              "2026-01-01"
+            ],
+            "snapshot_ids": [
+              "snap-2025-01-01",
+              "snap-2026-01-01"
+            ]
+          },
+          "input_snapshot_id": null,
+          "input_snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ],
+          "method_version": "flow_eligibility_v1",
+          "reason_codes": [
+            "MISSING_EXTERNAL_CASHFLOWS",
+            "NON_DAILY_NAV_SERIES"
+          ],
+          "required_inputs": [
+            "daily_nav_snapshots",
+            "external_cashflows"
+          ],
+          "status": "unavailable",
+          "value": null
+        },
+        "sharpe": {
+          "coverage": {
+            "external_cashflows": {
+              "end": "2026-01-01",
+              "source": null,
+              "start": "2025-01-01",
+              "status": "unknown"
+            },
+            "input_quality": {
+              "expected_snapshot_dates": null,
+              "missing_currencies": [],
+              "snapshot_reason_codes": []
+            },
+            "nav_observations": 2,
+            "snapshot_calculation_versions": [],
+            "snapshot_dates": [
+              "2025-01-01",
+              "2026-01-01"
+            ],
+            "snapshot_ids": [
+              "snap-2025-01-01",
+              "snap-2026-01-01"
+            ]
+          },
+          "input_snapshot_id": null,
+          "input_snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ],
+          "method_version": "flow_eligibility_v1",
+          "reason_codes": [
+            "MISSING_EXTERNAL_CASHFLOWS",
+            "NON_DAILY_NAV_SERIES",
+            "INSUFFICIENT_RETURN_OBSERVATIONS"
+          ],
+          "required_inputs": [
+            "daily_nav_snapshots",
+            "external_cashflows"
+          ],
+          "status": "unavailable",
+          "value": null
+        },
+        "sortino": {
+          "coverage": {
+            "external_cashflows": {
+              "end": "2026-01-01",
+              "source": null,
+              "start": "2025-01-01",
+              "status": "unknown"
+            },
+            "input_quality": {
+              "expected_snapshot_dates": null,
+              "missing_currencies": [],
+              "snapshot_reason_codes": []
+            },
+            "nav_observations": 2,
+            "snapshot_calculation_versions": [],
+            "snapshot_dates": [
+              "2025-01-01",
+              "2026-01-01"
+            ],
+            "snapshot_ids": [
+              "snap-2025-01-01",
+              "snap-2026-01-01"
+            ]
+          },
+          "input_snapshot_id": null,
+          "input_snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ],
+          "method_version": "flow_eligibility_v1",
+          "reason_codes": [
+            "MISSING_EXTERNAL_CASHFLOWS",
+            "NON_DAILY_NAV_SERIES"
+          ],
+          "required_inputs": [
+            "daily_nav_snapshots",
+            "external_cashflows"
+          ],
+          "status": "unavailable",
+          "value": null
+        },
+        "volatility_annual_pct": {
+          "coverage": {
+            "external_cashflows": {
+              "end": "2026-01-01",
+              "source": null,
+              "start": "2025-01-01",
+              "status": "unknown"
+            },
+            "input_quality": {
+              "expected_snapshot_dates": null,
+              "missing_currencies": [],
+              "snapshot_reason_codes": []
+            },
+            "nav_observations": 2,
+            "snapshot_calculation_versions": [],
+            "snapshot_dates": [
+              "2025-01-01",
+              "2026-01-01"
+            ],
+            "snapshot_ids": [
+              "snap-2025-01-01",
+              "snap-2026-01-01"
+            ]
+          },
+          "input_snapshot_id": null,
+          "input_snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ],
+          "method_version": "flow_eligibility_v1",
+          "reason_codes": [
+            "MISSING_EXTERNAL_CASHFLOWS",
+            "NON_DAILY_NAV_SERIES",
+            "INSUFFICIENT_RETURN_OBSERVATIONS"
+          ],
+          "required_inputs": [
+            "daily_nav_snapshots",
+            "external_cashflows"
+          ],
+          "status": "unavailable",
+          "value": null
+        },
+        "worst_day_pct": {
+          "coverage": {
+            "external_cashflows": {
+              "end": "2026-01-01",
+              "source": null,
+              "start": "2025-01-01",
+              "status": "unknown"
+            },
+            "input_quality": {
+              "expected_snapshot_dates": null,
+              "missing_currencies": [],
+              "snapshot_reason_codes": []
+            },
+            "nav_observations": 2,
+            "snapshot_calculation_versions": [],
+            "snapshot_dates": [
+              "2025-01-01",
+              "2026-01-01"
+            ],
+            "snapshot_ids": [
+              "snap-2025-01-01",
+              "snap-2026-01-01"
+            ]
+          },
+          "input_snapshot_id": null,
+          "input_snapshot_ids": [
+            "snap-2025-01-01",
+            "snap-2026-01-01"
+          ],
+          "method_version": "flow_eligibility_v1",
+          "reason_codes": [
+            "MISSING_EXTERNAL_CASHFLOWS",
+            "NON_DAILY_NAV_SERIES"
+          ],
+          "required_inputs": [
+            "daily_nav_snapshots",
+            "external_cashflows"
+          ],
+          "status": "unavailable",
+          "value": null
+        }
+      },
+      "observations": 2,
+      "raw_asset_change_pct": 60.0,
+      "raw_best_asset_change_pct": 60.0,
+      "raw_worst_asset_change_pct": 60.0,
+      "result_status": "partial",
+      "return_annual_pct": null,
+      "risk_free_rate_used": 0.0,
+      "sharpe": null,
+      "sortino": null,
+      "volatility_annual_pct": null,
+      "worst_day_pct": null
+    },
+    "sources_failed": [],
+    "start_nav_krw": 100.0,
+    "truncated_sources": []
+  }
+}

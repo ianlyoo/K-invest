@@ -1,0 +1,94 @@
+{
+  "pendingMixed": {
+    "result": {
+      "orders": [
+        {
+          "orderId": "bAGzNvMOOTa5Uy0xVzYNbxDJ3Qpobwau4jDF3hyZZGWbpHm7wha8CFZc7aXVOWAl",
+          "symbol": "005930",
+          "side": "BUY",
+          "orderType": "LIMIT",
+          "timeInForce": "DAY",
+          "status": "PENDING",
+          "price": "70000",
+          "quantity": "10",
+          "orderAmount": null,
+          "currency": "KRW",
+          "orderedAt": "2026-03-29T09:30:00+09:00",
+          "canceledAt": null,
+          "execution": {
+            "filledQuantity": "0",
+            "averageFilledPrice": null,
+            "filledAmount": null,
+            "commission": null,
+            "tax": null,
+            "filledAt": null,
+            "settlementDate": null
+          }
+        },
+        {
+          "orderId": "RpP3_wtsiKe9btBvdendaHoBqOIY_Zb_xPkRfYaqCIvf2FXtMDv_mo7VnD7KB-ia",
+          "symbol": "AAPL",
+          "side": "SELL",
+          "orderType": "LIMIT",
+          "timeInForce": "DAY",
+          "status": "PARTIAL_FILLED",
+          "price": "185.5",
+          "quantity": "5",
+          "orderAmount": null,
+          "currency": "USD",
+          "orderedAt": "2026-03-29T10:00:00+09:00",
+          "canceledAt": null,
+          "execution": {
+            "filledQuantity": "2",
+            "averageFilledPrice": "185.25",
+            "filledAmount": "370.5",
+            "commission": "0.66",
+            "tax": "0",
+            "filledAt": "2026-03-29T10:00:05+09:00",
+            "settlementDate": null
+          }
+        }
+      ],
+      "nextCursor": null,
+      "hasNext": false
+    }
+  },
+  "completedWithNextPage": {
+    "result": {
+      "orders": [
+        {
+          "orderId": "0d5QIHjmtksbsmM-hBRAgP-ExI8iodGm9fAR5txelPfnMM8XQ_swoJdwL5RpGWMo",
+          "symbol": "005930",
+          "side": "BUY",
+          "orderType": "LIMIT",
+          "timeInForce": "DAY",
+          "status": "FILLED",
+          "price": "70000",
+          "quantity": "10",
+          "orderAmount": null,
+          "currency": "KRW",
+          "orderedAt": "2026-03-28T09:30:00+09:00",
+          "canceledAt": null,
+          "execution": {
+            "filledQuantity": "10",
+            "averageFilledPrice": "70000",
+            "filledAmount": "700000",
+            "commission": "1400",
+            "tax": "0",
+            "filledAt": "2026-03-28T09:31:15+09:00",
+            "settlementDate": "2026-03-30"
+          }
+        }
+      ],
+      "nextCursor": "eyJvcmRlcmVkQXQiOiIyMDI2LTAzLTI4VDA5OjMwOjAwKzA5OjAwIiwib3JkZXJJZCI6Ik9SRDIwMjYwMzI4MDAxIn0=",
+      "hasNext": true
+    }
+  },
+  "empty": {
+    "result": {
+      "orders": [],
+      "nextCursor": null,
+      "hasNext": false
+    }
+  }
+}

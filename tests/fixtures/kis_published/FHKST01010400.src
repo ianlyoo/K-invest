@@ -1,0 +1,6 @@
+source: https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/domestic-stock/v1/quotations/inquire-daily-price
+data: https://apiportal.koreainvestment.com/api/apis/public/detail?accessUrl=/uapi/domestic-stock/v1/quotations/inquire-daily-price (field resAuth, verbatim)
+api: 주식현재가 일자별[v1_국내주식-010] real_tr_id=FHKST01010400 virtual_tr_id=FHKST01010400
+portal lastModifiedDate: 2026-03-30T12:37:23+09:00
+retrieved: 2026-10-17 KST
+validity: valid JSON

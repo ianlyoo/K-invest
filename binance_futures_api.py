@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import importlib.util
 import socket
 from typing import Any, Final, Literal
 
 import httpx
+
+import provider_pacing
+from kinvest_common import retry_after_seconds
 
 BASE_URL: Final = "https://fapi.binance.com"
 _LIMITS: Final = httpx.Limits(
@@ -23,9 +27,15 @@ class BinanceAPIError(Exception):
         self.body = body
 
 
+def _http2_available() -> bool:
+    # httpx needs the optional h2 package for HTTP/2 (not a declared dependency); with
+    # http2=True and no h2 every client construction raises ImportError. HTTP/1.1 then.
+    return importlib.util.find_spec("h2") is not None
+
+
 def _create_client() -> httpx.Client:
     transport = httpx.HTTPTransport(
-        http2=True,
+        http2=_http2_available(),
         retries=3,
         limits=_LIMITS,
         socket_options=_SOCKET_OPTIONS,
@@ -78,9 +88,17 @@ class BinanceFuturesClient:
 
     def _get_json(self, path: str, params: dict[str, str | int]) -> Any:
         try:
-            response = self._http.get(path, params=params)
+            # One public read/second is conservative for all exposed endpoints,
+            # including funding history; signed reads share the same budget.
+            with provider_pacing.BINANCE_BUDGET.request(interval=1.01) as budget:
+                response = self._http.get(path, params=params)
+                if response.status_code in (418, 429):
+                    delay = retry_after_seconds(response.headers.get("Retry-After"))
+                    budget.defer(response.status_code, delay if delay is not None else 60)
             response.raise_for_status()
             return response.json()
+        except provider_pacing.RequestThrottled as exc:
+            raise BinanceAPIError("Binance request cooldown", status=exc.status) from None
         except httpx.HTTPStatusError as exc:
             body: Any
             try:

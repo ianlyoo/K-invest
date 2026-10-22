@@ -38,7 +38,8 @@ def add_quarterly_ttm(sec_data: dict[str, Any], facts: dict[str, Any]) -> None:
     sec_data["ttm"] = _build_ttm(rows)
     sec_data.setdefault("methodology", {})["quarterly_ttm"] = (
         "SEC CompanyFacts 10-Q Q1-Q3 plus derived Q4 from FY minus Q1-Q3. "
-        "TTM sums latest four fiscal quarters by period_end."
+        "TTM sums latest four fiscal quarters by period_end. "
+        "Each period takes the first concept in the metric's tag list that reports it."
     )
 
 
@@ -47,7 +48,19 @@ def _metric_quarters(
     metric: str,
     tags: list[str],
 ) -> dict[tuple[int, str], dict[str, Any]]:
-    facts = _facts_for_tags(us_gaap, metric, tags)
+    """Quarters merged per period across the tag list: the first tag that yields a quarter wins.
+
+    Each tag's quarters (direct, YTD differences, FY minus Q1-Q3) are derived from that tag's own
+    facts only, so a derived quarter never mixes two concepts; `concept` labels the tag used.
+    """
+    result: dict[tuple[int, str], dict[str, Any]] = {}
+    for tag in tags:
+        for key, payload in _tag_quarters(metric, _facts_for_tag(us_gaap, tag)).items():
+            result.setdefault(key, payload)
+    return result
+
+
+def _tag_quarters(metric: str, facts: list[dict[str, Any]]) -> dict[tuple[int, str], dict[str, Any]]:
     if not facts:
         return {}
     by_fy: dict[int, list[dict[str, Any]]] = defaultdict(list)
@@ -84,27 +97,23 @@ def _metric_quarters(
     return result
 
 
-def _facts_for_tags(us_gaap: dict[str, Any], metric: str, tags: list[str]) -> list[dict[str, Any]]:
-    for tag in tags:
-        tag_data = us_gaap.get(tag)
-        if not isinstance(tag_data, dict):
+def _facts_for_tag(us_gaap: dict[str, Any], tag: str) -> list[dict[str, Any]]:
+    tag_data = us_gaap.get(tag)
+    if not isinstance(tag_data, dict):
+        return []
+    values = tag_data.get("units", {}).get("USD") or []
+    if not isinstance(values, list):
+        return []
+    rows = []
+    for raw in values:
+        if not isinstance(raw, dict):
             continue
-        units = tag_data.get("units", {})
-        values = units.get("USD") or []
-        if not isinstance(values, list):
-            continue
-        rows = []
-        for raw in values:
-            if not isinstance(raw, dict):
-                continue
-            row = dict(raw)
-            row["concept"] = tag
-            row["unit"] = "USD"
-            if safe_float(row.get("val")) is not None:
-                rows.append(row)
-        if rows:
-            return rows
-    return []
+        row = dict(raw)
+        row["concept"] = tag
+        row["unit"] = "USD"
+        if safe_float(row.get("val")) is not None:
+            rows.append(row)
+    return rows
 
 
 def _dedupe_original_periods(facts: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -158,11 +167,17 @@ def _q4_from_annual(
         return None
     base = cumulative.get("Q3")
     q1_q3 = safe_float(base.get("val")) if base is not None else None
+    first = base if q1_q3 is not None else direct.get("Q1")
     if q1_q3 is None:
         values = [safe_float((direct.get(fp) or {}).get("val")) for fp in QUARTER_FPS]
         if any(v is None for v in values):
             return None
         q1_q3 = sum(v or 0 for v in values)
+    # The annual must be this fiscal year's period (a 10-K's comparative years share its fy):
+    # it starts where Q1-Q3 start and ends after them.
+    if (first is None or str(annual.get("start") or "") != str(first.get("start") or "")
+            or str(annual.get("end") or "") <= str((base or direct.get("Q3") or {}).get("end") or "")):
+        return None
     annual_value = safe_float(annual.get("val"))
     if annual_value is None:
         return None
@@ -219,11 +234,16 @@ def _build_ttm(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
         ],
         "derived": True,
     }
-    for metric in ("revenue", "operating_income", "operating_cash_flow", "capex", "free_cash_flow"):
+    for metric in ("revenue", "operating_income", "net_income", "operating_cash_flow", "capex", "free_cash_flow"):
         values = [_metric_value(row, metric) for row in latest]
         if all(value is not None for value in values):
             numeric_values = [value for value in values if value is not None]
             ttm[metric] = {"value": round(sum(numeric_values), 2), "unit": "USD", "derived": True, "formula": "sum(latest_4_quarters)"}
+            concepts = sorted({str(row[metric].get("concept")) for row in latest if row[metric].get("concept")})
+            if concepts:
+                ttm[metric]["concepts"] = concepts
+        else:
+            ttm.setdefault("missing_metrics", []).append(metric)
     return ttm
 
 
@@ -246,13 +266,18 @@ def _metric_value(row: dict[str, Any], metric: str) -> float | None:
 def _better_annual(prev: dict[str, Any] | None, fact: dict[str, Any]) -> dict[str, Any]:
     if prev is None:
         return fact
-    return fact if str(fact.get("filed") or "") > str(prev.get("filed") or "") else prev
+    # Latest period first (a 10-K's own year, not its comparatives), then the latest filing.
+    key = (str(fact.get("end") or ""), str(fact.get("filed") or ""))
+    return fact if key > (str(prev.get("end") or ""), str(prev.get("filed") or "")) else prev
 
 
 def _better_quarter(prev: dict[str, Any] | None, fact: dict[str, Any]) -> dict[str, Any]:
     if prev is None:
         return fact
-    return fact if str(fact.get("filed") or "") > str(prev.get("filed") or "") else prev
+    # Latest period first: a 10-Q's equity roll-forward repeats earlier quarters of the year under
+    # the filing's own fp (e.g. Q1's three months inside the Q3 10-Q); then the latest filing.
+    key = (str(fact.get("end") or ""), str(fact.get("filed") or ""))
+    return fact if key > (str(prev.get("end") or ""), str(prev.get("filed") or "")) else prev
 
 
 def _duration_days(item: dict[str, Any]) -> int | None:

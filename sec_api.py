@@ -5,12 +5,15 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
 import httpx
 
+import provider_pacing
+from kinvest_common import NotConfiguredError, retry_after_seconds
 from sec_derived import add_derived_metrics
 from sec_insider import get_insider_trades
 from sec_quality import add_earnings_quality
@@ -19,7 +22,48 @@ from sec_ttm import add_quarterly_ttm
 
 logger = logging.getLogger("k-invest.sec")
 
-DEFAULT_SEC_UA = "k-invest/2.0 (research@example.com)"
+_EMAIL_CONTACT = re.compile(
+    r"(?<![A-Za-z0-9._%+@-])[A-Za-z0-9._%+-]+@"
+    r"([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?"
+    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*)"
+    r"(?![A-Za-z0-9_.@-])"
+)
+
+
+def _validated_sec_user_agent(value: str | None) -> str | None:
+    if value is None or not 1 <= len(value) <= 200:
+        return None
+    if any(not 32 <= ord(char) <= 126 for char in value):
+        return None
+    domains = [domain.lower() for domain in _EMAIL_CONTACT.findall(value)]
+    if not domains:
+        return None
+    placeholders = ("example.com", "example.org", "example.net", "localhost")
+    for domain in domains:
+        tld = domain.rsplit(".", 1)[-1]
+        if "." not in domain or not tld.isalpha() or len(tld) < 2:
+            return None
+        if domain in placeholders or any(
+            domain.endswith("." + name) for name in (*placeholders, "invalid", "example")
+        ):
+            return None
+    return value
+
+
+# Keep only a valid value; configuration changes require a process restart.
+_SEC_USER_AGENT = _validated_sec_user_agent(os.environ.get("SEC_USER_AGENT"))
+
+
+def sec_user_agent_configured() -> bool:
+    return _SEC_USER_AGENT is not None
+
+
+def _require_sec_user_agent() -> str:
+    if _SEC_USER_AGENT is None:
+        raise NotConfiguredError("sec", "SEC User-Agent is not configured.")
+    return _SEC_USER_AGENT
+
+
 SEC_BASE = "https://data.sec.gov"
 TEN_K_FORMS = {"10-K", "10-K/A"}
 DURATION_METRICS = {
@@ -31,7 +75,7 @@ SHARE_METRICS = {"shares_outstanding"}
 
 def _sec_headers() -> dict[str, str]:
     return {
-        "User-Agent": os.environ.get("SEC_USER_AGENT", DEFAULT_SEC_UA),
+        "User-Agent": _require_sec_user_agent(),
         "Accept-Encoding": "gzip, deflate",
     }
 
@@ -60,32 +104,48 @@ def _duration_days(item: dict[str, Any]) -> int | None:
     return (end - start).days
 
 
+def _fiscal_year_end(submissions: dict[str, Any] | None) -> str | None:
+    """SEC submissions `fiscalYearEnd` as published ("MMDD", e.g. "1101"); None when absent or malformed."""
+    value = str((submissions or {}).get("fiscalYearEnd") or "").strip()
+    return value if re.fullmatch(r"(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])", value) else None
+
+
 class SECClient:
     """SEC EDGAR data client (read-only, no API key required)."""
 
     def __init__(self):
         self._http = httpx.Client(timeout=15.0, headers=_sec_headers())
 
+    def _request(self, url):
+        with provider_pacing.SEC_BUDGET.request() as budget:
+            response = self._http.get(url)
+            if response.status_code in (403, 429, 503):
+                delay = retry_after_seconds(response.headers.get("Retry-After"))
+                budget.defer(response.status_code, delay if delay is not None else 60)
+            return response
+
     def _get_json(self, url: str) -> dict[str, Any] | None:
+        _require_sec_user_agent()
         try:
-            resp = self._http.get(url)
+            resp = self._request(url)
             if resp.status_code != 200:
-                logger.warning("SEC API %d: %s", resp.status_code, url)
+                logger.warning("SEC API returned HTTP %d", resp.status_code)
                 return None
             data = resp.json()
             return data if isinstance(data, dict) else None
-        except httpx.HTTPError as exc:
-            logger.warning("SEC API error: %s", exc)
+        except (httpx.HTTPError, provider_pacing.RequestThrottled):
+            logger.warning("SEC API request failed")
             return None
 
     def _get_text(self, url: str) -> str | None:
+        _require_sec_user_agent()
         try:
-            resp = self._http.get(url)
+            resp = self._request(url)
             if resp.status_code != 200:
                 return None
             return resp.text
-        except httpx.HTTPError as exc:
-            logger.warning("SEC text fetch error: %s", exc)
+        except (httpx.HTTPError, provider_pacing.RequestThrottled):
+            logger.warning("SEC text request failed")
             return None
 
     def get_cik(self, ticker: str) -> str | None:
@@ -112,6 +172,14 @@ class SECClient:
         facts = self.get_company_facts(cik)
         if not facts:
             return {"error": f"CompanyFacts not available for {ticker} (CIK: {cik})"}
+        # One fetch per URL within this call: the submissions JSON gives fiscal_year_end and is
+        # read again by the segment lookup.
+        fetched: dict[str, dict[str, Any] | None] = {}
+
+        def get_json(url: str) -> dict[str, Any] | None:
+            if url not in fetched:
+                fetched[url] = self._get_json(url)
+            return fetched[url]
 
         concepts = {
             "revenue": ["RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "SalesRevenueNet"],
@@ -173,12 +241,15 @@ class SECClient:
         if "gross_profit" in derived_metrics:
             warnings = [warning for warning in warnings if warning != "missing_metric:gross_profit"]
 
+        fiscal_year_end = _fiscal_year_end(get_json(f"{SEC_BASE}/submissions/CIK{cik}.json"))
+        if fiscal_year_end is None:
+            warnings.append("missing_fiscal_year_end")
         result = {
             "entity": {
                 "ticker": ticker.upper(),
                 "cik": cik,
                 "name": facts.get("entityName") or facts.get("entity", {}).get("name", ""),
-                "fiscal_year_end": facts.get("fiscalYearEnd") or facts.get("entity", {}).get("fiscalYearEnd", ""),
+                "fiscal_year_end": fiscal_year_end,
             },
             "annuals": annuals,
             "warnings": warnings,
@@ -186,11 +257,13 @@ class SECClient:
             "methodology": {
                 "forms": sorted(TEN_K_FORMS),
                 "period_filter": "fp=FY; fiscal_year is derived from period_end year; duration metrics require 300-380 day periods; original fiscal-year filing wins over later comparative rows",
+                "concept_selection": "per fiscal year, the first tag in the metric's list that reports that year; concept names the tag used",
+                "fiscal_year_end": "SEC submissions fiscalYearEnd (MMDD); null with missing_fiscal_year_end when absent",
             },
         }
         add_quarterly_ttm(result, facts)
         add_earnings_quality(result, facts)
-        result["segment_revenue"] = get_segment_revenue(self._get_json, self._get_text, cik, ticker)
+        result["segment_revenue"] = get_segment_revenue(get_json, self._get_text, cik, ticker)
         return result
 
     def get_ttm_financials(self, ticker: str) -> dict[str, Any]:
@@ -203,6 +276,8 @@ class SECClient:
         metric: str,
         tags: list[str],
     ) -> dict[int, dict[str, Any]]:
+        # Merged per fiscal year across the tag list: the first tag with a fact for that year wins
+        # (an issuer may move e.g. from NetIncomeLoss to ProfitLoss); `concept` labels the tag used.
         chosen: dict[int, dict[str, Any]] = {}
         for tag in tags:
             tag_data = us_gaap.get(tag)
@@ -213,6 +288,7 @@ class SECClient:
             values = units.get(unit_name) or units.get("USD") or units.get("shares") or []
             if not isinstance(values, list):
                 continue
+            tag_chosen: dict[int, dict[str, Any]] = {}
             for raw in values:
                 if not isinstance(raw, dict):
                     continue
@@ -220,11 +296,11 @@ class SECClient:
                 if normalized is None:
                     continue
                 fiscal_year = normalized["fy"]
-                previous = chosen.get(fiscal_year)
+                previous = tag_chosen.get(fiscal_year)
                 if previous is None or self._fact_rank(normalized) > self._fact_rank(previous):
-                    chosen[fiscal_year] = normalized
-            if chosen:
-                break
+                    tag_chosen[fiscal_year] = normalized
+            for fiscal_year, fact in tag_chosen.items():
+                chosen.setdefault(fiscal_year, fact)
         return dict(sorted(chosen.items(), reverse=True)[:5])
 
     @staticmethod

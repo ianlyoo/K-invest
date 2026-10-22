@@ -21,3 +21,12 @@ def test_main_when_placeholder_token_then_exits(monkeypatch) -> None:
     monkeypatch.setattr(server, "MCP_AUTH_TOKEN", "generate_a_random_token_here")
     with pytest.raises(SystemExit):
         server.main()
+
+
+def test_httpx_request_logging_is_suppressed():
+    """Broker URLs carry CANO=<account number>; httpx INFO would log them to journald."""
+    import logging
+
+    import server  # noqa: F401 — importing configures logging
+
+    assert logging.getLogger("httpx").level >= logging.WARNING

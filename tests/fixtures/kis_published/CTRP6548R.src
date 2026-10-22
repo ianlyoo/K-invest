@@ -1,0 +1,6 @@
+source: https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/domestic-stock/v1/trading/inquire-account-balance
+data: https://apiportal.koreainvestment.com/api/apis/public/detail?accessUrl=/uapi/domestic-stock/v1/trading/inquire-account-balance (field resAuth, verbatim)
+api: 투자계좌자산현황조회[v1_국내주식-048] real_tr_id=CTRP6548R virtual_tr_id=모의투자 미지원
+portal lastModifiedDate: 2025-04-30T10:10:35+09:00
+retrieved: 2026-10-17 KST
+validity: valid JSON

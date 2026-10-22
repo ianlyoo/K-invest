@@ -17,6 +17,10 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=k-invest
 CacheDirectory=k-invest
+StateDirectory=k-invest
+StateDirectoryMode=0700
+Environment=KINVEST_OAUTH_STATE_DIR=/var/lib/k-invest/oauth
+UMask=0077
 
 # Security hardening
 NoNewPrivileges=true

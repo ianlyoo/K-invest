@@ -1,0 +1,40 @@
+{
+    "ctx_area_fk100": "                                                                                                    ",
+    "ctx_area_nk100": "                                                                                                    ",
+    "output1": [
+        {
+            "trad_dt": "20240220",
+            "buy_amt": "116697331",
+            "sll_amt": "96455",
+            "rlzt_pfls": "22991",
+            "fee": "0",
+            "loan_int": "0",
+            "tl_tax": "0",
+            "pfls_rt": "31.29560057",
+            "sll_qty1": "8",
+            "buy_qty1": "2003"
+        }
+    ],
+    "output2": {
+        "sll_qty_smtl": "8",
+        "sll_tr_amt_smtl": "96455",
+        "sll_fee_smtl": "0",
+        "sll_tltx_smtl": "0",
+        "sll_excc_amt_smtl": "96455",
+        "buy_qty_smtl": "2003",
+        "buy_tr_amt_smtl": "116697331",
+        "buy_fee_smtl": "0",
+        "buy_tax_smtl": "0",
+        "buy_excc_amt_smtl": "116697331",
+        "tot_qty": "2011",
+        "tot_tr_amt": "116793786",
+        "tot_fee": "0",
+        "tot_tltx": "0",
+        "tot_excc_amt": "116793786",
+        "tot_rlzt_pfls": "22991",
+        "loan_int": "0"
+    },
+    "rt_cd": "0",
+    "msg_cd": "KIOK0510",
+    "msg1": "조회가 완료되었습니다                                                           "
+}

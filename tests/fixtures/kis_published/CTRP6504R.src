@@ -1,0 +1,6 @@
+provenance: hand_built_from_field_list
+reason: the published example (CTRP6504R.published.src) is NOT strict JSON (truncated inside output1) and is in KRW basis (WCRC_FRCR_DVSN_CD=01); the capture requests 02 (foreign currency).
+fields: KIS portal resAuth field list for /uapi/overseas-stock/v1/trading/inquire-present-balance (portal lastModifiedDate 2025-04-30), output1 array, output2 array, output3 object (A0003).
+values: synthetic. JPY bass_exrt is quoted per 100 JPY as in the published example (981.11 with KRW prices = JPY price x 9.8111).
+built: 2026-10-17 KST
+output3.frcr_evlu_tota: FX cash in KRW (KIS field list: overseas = evlu_amt_smtl + frcr_evlu_tota), so tot_asst_amt = evlu_amt_smtl + frcr_evlu_tota (corrected 2026-10-18).

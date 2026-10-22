@@ -1,0 +1,24 @@
+[Unit]
+Description=K-invest daily portfolio NAV snapshot
+After=network-online.target k-invest.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=youruser
+Group=youruser
+WorkingDirectory=/home/youruser/K-invest
+EnvironmentFile=/etc/k-invest.env
+Environment=KINVEST_CACHE_DIR=/var/cache/k-invest
+# Writes one row per day into the NAV store; safe to run repeatedly (upsert by date).
+ExecStart=/usr/bin/python3 /home/youruser/K-invest/scripts/snapshot_nav.py
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=k-invest-snapshot
+CacheDirectory=k-invest
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only

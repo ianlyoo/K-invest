@@ -1,0 +1,39 @@
+{
+  "output": [
+    {
+      "stck_bsop_date": "20220111",
+      "stck_oprc": "125500",
+      "stck_hgpr": "128500",
+      "stck_lwpr": "124500",
+      "stck_clpr": "128000",
+      "acml_vol": "3908418",
+      "prdy_vrss_vol_rate": "13.31",
+      "prdy_vrss": "3500",
+      "prdy_vrss_sign": "2",
+      "prdy_ctrt": "2.81",
+      "hts_frgn_ehrt": "49.39",
+      "frgn_ntby_qty": "0",
+      "flng_cls_code": "00",
+      "acml_prtt_rate": "1.00"
+    },
+    {
+      "stck_bsop_date": "20220110",
+      "stck_oprc": "126500",
+      "stck_hgpr": "127000",
+      "stck_lwpr": "123000",
+      "stck_clpr": "124500",
+      "acml_vol": "3449197",
+      "prdy_vrss_vol_rate": "5.48",
+      "prdy_vrss": "-2500",
+      "prdy_vrss_sign": "5",
+      "prdy_ctrt": "-1.97",
+      "hts_frgn_ehrt": "49.39",
+      "frgn_ntby_qty": "293389",
+      "flng_cls_code": "00",
+      "acml_prtt_rate": "0.00"
+    }
+	  ],
+  "rt_cd": "0",
+  "msg_cd": "MCA00000",
+  "msg1": "정상처리 되었습니다!"
+}

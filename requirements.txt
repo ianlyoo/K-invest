@@ -1,4 +1,6 @@
 mcp>=1.26,<2
 httpx>=0.28
+cryptography>=50.0.2
 yfinance>=1.2
 uvicorn>=0.40
+pypdf==6.19.0

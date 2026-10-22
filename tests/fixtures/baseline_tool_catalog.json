@@ -1,0 +1,264 @@
+{
+  "raw_tools": {
+    "get_candles": {
+      "description": "Get candlestick chart data (OHLCV) for a stock (Toss).\n\n    Args:\n        symbol: Stock symbol (e.g., \"AAPL\", \"005930\")\n        interval: Candle interval — \"1d\" for daily or \"1m\" for 1-minute\n        count: Number of candles to retrieve (max 200, default 100)\n        adjusted: Request provider adjustments (default True); actual basis unverified.\n        before: Provider cursor; inclusive local timestamp filter, upstream boundary unverified.\n        start_date/end_date: Inclusive YYYY-MM-DD candle-local labels. One page per call.\n\n    Returns:\n        Raw provider payload for existing calls. Paging calls add returned_range,\n        next_cursor, complete (page chain only, not historical coverage), limit,\n        result_status/reason_codes and source_metadata. Merge pages ascending by\n        timestamp and deduplicate; adjusted prices are not verified total returns.\n    ",
+      "inputSchema": {
+        "properties": {
+          "adjusted": {
+            "default": true,
+            "title": "Adjusted",
+            "type": "boolean"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Before"
+          },
+          "count": {
+            "default": 100,
+            "title": "Count",
+            "type": "integer"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End Date"
+          },
+          "interval": {
+            "default": "1d",
+            "enum": [
+              "1d",
+              "1m"
+            ],
+            "title": "Interval",
+            "type": "string"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start Date"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol"
+        ],
+        "title": "get_candlesArguments",
+        "type": "object"
+      },
+      "name": "get_candles",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "get_candlesDictOutput",
+        "type": "object"
+      }
+    },
+    "get_kis_accounts": {
+      "description": "List configured KIS accounts without exposing account numbers or keys.\n\n    Each entry carries the label to pass as `account` on the other KIS tools, its\n    계좌상품코드, and `kind`: \"pension\" for a 연금저축(22)/퇴직연금(29) account,\n    which holds domestic products only, or \"general\" otherwise.\n\n    Returns:\n        Structured JSON envelope with account labels and their metadata.\n    ",
+      "inputSchema": {
+        "properties": {},
+        "title": "get_kis_accountsArguments",
+        "type": "object"
+      },
+      "name": "get_kis_accounts",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "get_kis_accountsDictOutput",
+        "type": "object"
+      }
+    },
+    "get_kis_domestic_balance": {
+      "description": "Get Korean domestic stock balance from KIS (READ-ONLY).\n\n    Shows all Korean stocks held with quantity, average price, current price,\n    and P&L. Also includes cash balance.\n\n    Args:\n        account: Account label from get_kis_accounts() — a 연금저축 account is\n            queried the same way. Empty uses the default account; \"all\" queries\n            every configured account.\n\n    Returns:\n        Structured JSON envelope with domestic balance data.\n    ",
+      "inputSchema": {
+        "properties": {
+          "account": {
+            "default": "",
+            "title": "Account",
+            "type": "string"
+          }
+        },
+        "title": "get_kis_domestic_balanceArguments",
+        "type": "object"
+      },
+      "name": "get_kis_domestic_balance",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "get_kis_domestic_balanceDictOutput",
+        "type": "object"
+      }
+    },
+    "get_kis_overseas_balance": {
+      "description": "Get overseas (US/JP/HK) stock balance from KIS (READ-ONLY).\n\n    Shows all overseas stocks held including US, Japan, Hong Kong, China.\n    Includes cash balance per currency. Pension accounts (연금저축/퇴직연금) cannot\n    hold overseas securities and report OVERSEAS_NOT_SUPPORTED instead.\n\n    Args:\n        account: Account label from get_kis_accounts(). Empty uses the default\n            account; \"all\" queries every configured account.\n\n    Returns:\n        Structured JSON envelope with overseas balance data.\n    ",
+      "inputSchema": {
+        "properties": {
+          "account": {
+            "default": "",
+            "title": "Account",
+            "type": "string"
+          }
+        },
+        "title": "get_kis_overseas_balanceArguments",
+        "type": "object"
+      },
+      "name": "get_kis_overseas_balance",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "get_kis_overseas_balanceDictOutput",
+        "type": "object"
+      }
+    },
+    "get_kis_trade_history": {
+      "description": "Get trade history (execution records) from KIS (READ-ONLY).\n\n    Recovery defaults to the last 30 days; pass start_date (e.g. 2024-01-01) to query older history.\n\n    Fetches both domestic and overseas trade history.\n    recovery=True opts into the normalized ledger, bounded 90-day windows,\n    coverage and failed-chunk-only resume. Omitted/false preserves raw output.\n    resume_cursor must repeat the original dates and account.\n\n    Args:\n        start_date: Start date in YYYYMMDD format (default: 30 days ago)\n        end_date: End date in YYYYMMDD format (default: today)\n        account: Account label from get_kis_accounts(). Empty uses the default\n            account; \"all\" queries every configured account.\n\n    Returns:\n        Structured JSON envelope with domestic and overseas trade records.\n    ",
+      "inputSchema": {
+        "properties": {
+          "account": {
+            "default": "",
+            "title": "Account",
+            "type": "string"
+          },
+          "end_date": {
+            "default": "",
+            "title": "End Date",
+            "type": "string"
+          },
+          "recovery": {
+            "default": false,
+            "title": "Recovery",
+            "type": "boolean"
+          },
+          "resume_cursor": {
+            "default": "",
+            "title": "Resume Cursor",
+            "type": "string"
+          },
+          "start_date": {
+            "default": "",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "title": "get_kis_trade_historyArguments",
+        "type": "object"
+      },
+      "name": "get_kis_trade_history",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "get_kis_trade_historyDictOutput",
+        "type": "object"
+      }
+    },
+    "get_toss_accounts": {
+      "description": "List configured Toss account labels without exposing credentials.",
+      "inputSchema": {
+        "properties": {},
+        "title": "get_toss_accountsArguments",
+        "type": "object"
+      },
+      "name": "get_toss_accounts",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "get_toss_accountsDictOutput",
+        "type": "object"
+      }
+    },
+    "get_toss_holdings": {
+      "description": "Get Toss Securities account holdings (READ-ONLY).\n\n    Shows all stocks held in the Toss account with quantity, purchase price,\n    market value, and P&L.\n\n    Args:\n        symbol: Optional — filter to a specific stock symbol. Empty string returns all.\n\n    Returns:\n        Structured JSON envelope with holdings data.\n    ",
+      "inputSchema": {
+        "properties": {
+          "account": {
+            "default": "primary",
+            "title": "Account",
+            "type": "string"
+          },
+          "symbol": {
+            "default": "",
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "title": "get_toss_holdingsArguments",
+        "type": "object"
+      },
+      "name": "get_toss_holdings",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "get_toss_holdingsDictOutput",
+        "type": "object"
+      }
+    },
+    "get_toss_trade_history": {
+      "description": "Get recent trade history (filled orders) from Toss Securities (READ-ONLY).\n\n    Recovery defaults to the last 90 days; pass start_date (e.g. 2024-01-01) to query older history.\n\n    Args:\n        limit: Maximum number of trades to retrieve (default 50)\n        recovery: opt into the normalized, windowed ledger response (no row-limit).\n            Omitted/false preserves the existing raw response. Positive partial\n            fills are included in recovery. limit applies only to the raw branch.\n        start_date: recovery start, ISO YYYY-MM-DD (default 90 days ago)\n        end_date: recovery end, ISO YYYY-MM-DD (default today)\n        resume_cursor: opaque recovery cursor; repeat the original filters\n        page_size: recovery page size, 1–100\n\n    Returns:\n        Structured JSON envelope with recent filled orders.\n    ",
+      "inputSchema": {
+        "properties": {
+          "account": {
+            "default": "primary",
+            "title": "Account",
+            "type": "string"
+          },
+          "end_date": {
+            "default": "",
+            "title": "End Date",
+            "type": "string"
+          },
+          "limit": {
+            "default": 50,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "page_size": {
+            "default": 100,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "recovery": {
+            "default": false,
+            "title": "Recovery",
+            "type": "boolean"
+          },
+          "resume_cursor": {
+            "default": "",
+            "title": "Resume Cursor",
+            "type": "string"
+          },
+          "start_date": {
+            "default": "",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "title": "get_toss_trade_historyArguments",
+        "type": "object"
+      },
+      "name": "get_toss_trade_history",
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "get_toss_trade_historyDictOutput",
+        "type": "object"
+      }
+    }
+  }
+}

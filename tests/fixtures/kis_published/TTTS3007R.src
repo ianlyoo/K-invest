@@ -1,0 +1,5 @@
+provenance: hand_built_from_field_list
+reason: the published example (TTTS3007R.published.src) is NOT strict JSON. TTTS3007R (buying power) is not consumed by the ledgerless capture; the fixture proves the strict contract refuses TRs outside it.
+fields: KIS portal resAuth field list for /uapi/overseas-stock/v1/trading/inquire-psamount, output object (A0003).
+values: synthetic.
+built: 2026-10-17 KST

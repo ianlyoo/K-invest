@@ -1,0 +1,27 @@
+{
+  "version": "product_map_YYYY-MM-DD",
+  "products": {
+    "US:EXAMPLE2X": {
+      "kind": "leveraged_etf", "underlying": "US:EXAMPLE", "leverage_target": 2, "reset": "daily",
+      "name": "Example 2X Long Daily ETF", "issuer": "Example Issuer",
+      "source": {"url": "https://issuer.example/etf/example2x", "date": "YYYY-MM-DD",
+                 "evidence": "issuer page: 200% of the daily performance of EXAMPLE common shares"}
+    },
+    "KR:000000": {
+      "kind": "leveraged_etf", "underlying": "index:EXAMPLE_INDEX", "leverage_target": 2, "reset": "daily",
+      "name": "Example index leveraged ETF", "issuer": "Example Asset Management",
+      "source": {"url": "https://issuer.example/kr/000000", "date": "YYYY-MM-DD",
+                 "evidence": "issuer fact sheet: 2x the daily return of the example index"}
+    }
+  },
+  "common_stocks": {"US:EXAMPLE": "Example Corp"},
+  "common_stocks_date": "YYYY-MM-DD",
+  "perps": {
+    "hyperliquid:xyz:EXAMPLE": {
+      "kind": "equity_perp", "underlying": "US:EXAMPLE", "name": "XYZ EXAMPLE/USD perpetual",
+      "source": {"url": "https://venue.example/specifications", "date": "YYYY-MM-DD",
+                 "evidence": "venue spec: references 1 share of Example Corp common stock, quoted in USD"}
+    }
+  },
+  "underlying_names": {"index:EXAMPLE_INDEX": "Example Index"}
+}

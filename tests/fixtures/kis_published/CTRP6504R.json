@@ -1,0 +1,37 @@
+{
+  "_provenance": "hand_built_from_field_list",
+  "rt_cd": "0",
+  "msg_cd": "KIOK0000",
+  "msg1": "조회가 완료되었습니다",
+  "output1": [
+    {"prdt_name": "SYNTHETIC-US", "cblc_qty13": "10.00000000", "thdt_buy_ccld_qty1": "0.00000000", "thdt_sll_ccld_qty1": "0.00000000",
+     "ccld_qty_smtl1": "10.00000000", "ord_psbl_qty1": "10.00000000", "frcr_pchs_amt": "2000.00000", "frcr_evlu_amt2": "2300.000000",
+     "evlu_pfls_amt2": "300.00000", "evlu_pfls_rt1": "15.00000000", "pdno": "AAPL", "bass_exrt": "1400.00000000", "buy_crcy_cd": "USD",
+     "ovrs_now_pric1": "230.00000", "avg_unpr3": "200.0000", "tr_mket_name": "나스닥", "natn_kor_name": "미국", "pchs_rmnd_wcrc_amt": "2700000",
+     "thdt_buy_ccld_frcr_amt": "0.000000", "thdt_sll_ccld_frcr_amt": "0.000000", "unit_amt": "1", "std_pdno": "US0378331005",
+     "prdt_type_cd": "512", "scts_dvsn_name": "현금", "loan_rmnd": "0", "loan_dt": "", "loan_expd_dt": "", "ovrs_excg_cd": "NASD",
+     "item_lnkg_excg_cd": "NAS"},
+    {"prdt_name": "SYNTHETIC-JP", "cblc_qty13": "100.00000000", "thdt_buy_ccld_qty1": "0.00000000", "thdt_sll_ccld_qty1": "0.00000000",
+     "ccld_qty_smtl1": "100.00000000", "ord_psbl_qty1": "100.00000000", "frcr_pchs_amt": "280000.00000", "frcr_evlu_amt2": "300000.000000",
+     "evlu_pfls_amt2": "20000.00000", "evlu_pfls_rt1": "7.14000000", "pdno": "7203", "bass_exrt": "950.00000000", "buy_crcy_cd": "JPY",
+     "ovrs_now_pric1": "3000.00000", "avg_unpr3": "2800.0000", "tr_mket_name": "도쿄", "natn_kor_name": "일본", "pchs_rmnd_wcrc_amt": "2660000",
+     "thdt_buy_ccld_frcr_amt": "0.000000", "thdt_sll_ccld_frcr_amt": "0.000000", "unit_amt": "100", "std_pdno": "JP3633400001",
+     "prdt_type_cd": "515", "scts_dvsn_name": "현금", "loan_rmnd": "0", "loan_dt": "", "loan_expd_dt": "", "ovrs_excg_cd": "TKSE",
+     "item_lnkg_excg_cd": "TSE"}
+  ],
+  "output2": [
+    {"crcy_cd": "USD", "crcy_cd_name": "미국달러", "frcr_buy_amt_smtl": "0.000000", "frcr_sll_amt_smtl": "0.000000",
+     "frcr_dncl_amt_2": "500.000000", "frst_bltn_exrt": "1400.00000000", "frcr_buy_mgn_amt": "0.000000", "frcr_etc_mgna": "0.000000",
+     "frcr_drwg_psbl_amt_1": "500.000000", "frcr_evlu_amt2": "700000", "acpl_cstd_crcy_yn": "N", "nxdy_frcr_drwg_psbl_amt": "500.000000"},
+    {"crcy_cd": "JPY", "crcy_cd_name": "일본엔화", "frcr_buy_amt_smtl": "0.000000", "frcr_sll_amt_smtl": "0.000000",
+     "frcr_dncl_amt_2": "10000.000000", "frst_bltn_exrt": "950.00000000", "frcr_buy_mgn_amt": "0.000000", "frcr_etc_mgna": "0.000000",
+     "frcr_drwg_psbl_amt_1": "10000.000000", "frcr_evlu_amt2": "95000", "acpl_cstd_crcy_yn": "N", "nxdy_frcr_drwg_psbl_amt": "10000.000000"}
+  ],
+  "output3": {
+    "pchs_amt_smtl": "5360000", "evlu_amt_smtl": "6070000", "evlu_pfls_amt_smtl": "710000", "dncl_amt": "795000", "cma_evlu_amt": "0",
+    "tot_dncl_amt": "795000", "etc_mgna": "0", "wdrw_psbl_tot_amt": "795000", "frcr_evlu_tota": "795000", "evlu_erng_rt1": "13.24",
+    "pchs_amt_smtl_amt": "5360000", "evlu_amt_smtl_amt": "6070000", "tot_evlu_pfls_amt": "710000", "tot_asst_amt": "6865000",
+    "buy_mgn_amt": "0", "mgna_tota": "0", "frcr_use_psbl_amt": "795000", "ustl_sll_amt_smtl": "0", "ustl_buy_amt_smtl": "0",
+    "tot_frcr_cblc_smtl": "795000", "tot_loan_amt": "0"
+  }
+}

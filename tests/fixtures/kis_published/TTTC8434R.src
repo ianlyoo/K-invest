@@ -1,0 +1,6 @@
+source: https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/domestic-stock/v1/trading/inquire-balance
+data: https://apiportal.koreainvestment.com/api/apis/public/detail?accessUrl=/uapi/domestic-stock/v1/trading/inquire-balance (field resAuth, verbatim)
+api: 주식잔고조회[v1_국내주식-006] real_tr_id=TTTC8434R virtual_tr_id=VTTC8434R
+portal lastModifiedDate: 2026-07-06T08:10:20+09:00
+retrieved: 2026-10-17 KST
+validity: valid JSON

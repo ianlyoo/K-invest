@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://ianlyoo.github.io/K-invest/sitemap.xml

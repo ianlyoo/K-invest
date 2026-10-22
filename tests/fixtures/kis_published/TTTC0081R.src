@@ -1,0 +1,6 @@
+source: https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/domestic-stock/v1/trading/inquire-daily-ccld
+data: https://apiportal.koreainvestment.com/api/apis/public/detail?accessUrl=/uapi/domestic-stock/v1/trading/inquire-daily-ccld (field resAuth, verbatim)
+api: 주식일별주문체결조회[v1_국내주식-005] real_tr_id=(3개월이내) TTTC0081R (3개월이전) CTSC9215R virtual_tr_id=(3개월이내) VTTC0081R (3개월이전) VTSC9215R
+portal lastModifiedDate: 2026-06-08T15:40:23+09:00
+retrieved: 2026-10-17 KST
+validity: valid JSON

@@ -1,0 +1,11 @@
+title: K-invest
+description: "Read-only Python MCP server for Korean and US portfolio data: Toss Securities and KIS holdings, returns and trades, crypto futures, SEC EDGAR and yfinance financials"
+theme: jekyll-theme-primer
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
+defaults:
+  - scope:
+      path: ""
+    values:
+      image: /assets/social-preview.png
